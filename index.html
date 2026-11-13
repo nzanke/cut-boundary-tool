@@ -85,7 +85,7 @@ nav button[aria-current="true"]{background:var(--fg);color:var(--panel);border-c
 .filters .grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .chip{font-size:12px;padding:3px 8px;border-radius:12px}
 .chip[aria-pressed="true"]{background:var(--mine);border-color:var(--mine);color:#fff}
-.filters input[type=number]{width:5em;font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.filters input[type=text]{width:5em;font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
 .filters select{font:inherit;font-size:12px}
 #stats h3{font-size:14px;margin:12px 0 4px}
 #stats summary{cursor:pointer;font-size:14px;font-weight:600;margin-top:10px}
@@ -168,7 +168,7 @@ textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;pa
     <div class="grp">アングル <span id="fAngle"></span></div>
     <div class="grp">被写体 <span id="fSubj"></span></div>
     <div class="grp"><select id="fBg"><option value="all">BGオンリーも含む</option><option value="bg">BGオンリーだけ</option><option value="nobg">BGオンリーを除く</option></select></div>
-    <div class="grp">秒数 <input id="fMin" type="number" min="0" step="0.5" placeholder="下限">〜<input id="fMax" type="number" min="0" step="0.5" placeholder="上限"></div>
+    <div class="grp">尺 <input id="fMin" type="text" inputmode="decimal" placeholder="下限" title="秒（3、2.5）か秒＋コマ（1+12）">〜<input id="fMax" type="text" inputmode="decimal" placeholder="上限" title="秒（3、2.5）か秒＋コマ（1+12）"><small class="note">秒か 1+12</small></div>
     <div class="grp"><select id="fPart"></select></div>
     <button id="fClear" type="button">絞り込みを外す</button>
     <span id="nShown" class="note"></span>

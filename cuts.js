@@ -80,13 +80,15 @@ function statsHtml(st, title) {
 }
 
 // ---------- 画面 ----------
+// 秒数の欄：「3」「2.5」（秒）と「1+12」（秒＋コマ、24コマ＝1秒）のどちらでも読む
+function parseT(v) { v = String(v).trim().replace(/[＋]/g, '+').replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)); if (v === '') return null; const m = v.match(/^(\d+)\+(\d+)$/); if (m) return +m[1] + +m[2] / 24; const x = parseFloat(v); return isNaN(x) ? null : x; }
 function match(c) {
-  const s = sec(c, R.video.fps);
+  const s = koma(c, R.video.fps) / 24;
   if (F.size.size && !F.size.has(c.size || '-')) return false;
   if (F.angle.size && !F.angle.has(c.angle || '')) return false;
   if (F.subj.size && !F.subj.has(c.subj || '-')) return false;
   if (F.bg === 'bg' && !c.bg) return false; if (F.bg === 'nobg' && c.bg) return false;
-  if (F.min !== '' && s < +F.min) return false; if (F.max !== '' && s > +F.max) return false;
+  const lo = parseT(F.min), hi = parseT(F.max); if (lo !== null && s < lo - 1e-6) return false; if (hi !== null && s > hi + 1e-6) return false;
   if (F.part && c.part !== F.part) return false;
   return true;
 }
