@@ -1,6 +1,6 @@
 // 過去の記録：一覧・開く・回どうし／作品どうしの比較
 import * as store from './store.js';
-import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl } from './cuts.js';
+import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk } from './cuts.js';
 
 const $ = id => document.getElementById(id);
 let IDX = [];
@@ -36,7 +36,7 @@ function renderTable() {
     + SIZES.filter(x => x[0] !== 'CH').map(s => `<th>${s[1]}</th>`).join('') + ANGLES.filter(x => x[0]).map(a => `<th>${a[1]}</th>`).join('')
     + `<th>BGオンリー</th>` + SUBJ.map(s => `<th>被写体${s[1]}</th>`).join('') + (byWork ? '' : '<th></th>') + '</tr>';
   const body = rows.map(r => `<tr><td class="nm">${byWork ? `${r.work}<br><small>${r.title}</small>` : `${r.work || ''} ${r.ep || ''}<br><small>${r.title || ''}（${r.id}）</small>`}</td>
-    <td>${r.n}</td><td>${Math.floor(r.total / 60)}分</td><td><b>${f1(r.mean)}</b></td>${byWork ? '' : `<td>${f1(r.median)}</td>`}
+    <td>${r.n}</td><td>${Math.floor(r.total / 60)}分</td><td><b>${sk(Math.round(r.mean * 24))}</b><br>${f1(r.mean)}秒</td>${byWork ? '' : `<td>${sk(Math.round(r.median * 24))}<br>${f1(r.median)}秒</td>`}
     <td>${pct(r.bins[0] + r.bins[1], r.n)}</td><td>${pct(r.long10share, 1)}</td>`
     + SIZES.filter(x => x[0] !== 'CH').map(([v]) => `<td>${pct(r.size[v] || 0, sz(r))}</td>`).join('')
     + ANGLES.filter(x => x[0]).map(([v]) => `<td>${pct(r.angle[v] || 0, r.n)}</td>`).join('')

@@ -13,6 +13,10 @@ const label = (L, v) => (L.find(x => x[0] === v) || [, v])[1];
 
 let R = null, urls = [], editable = true, saveT = null, F = { size: new Set(), angle: new Set(), subj: new Set(), bg: 'all', min: '', max: '', part: '' };
 export const sec = (c, fps) => (c.b - c.a + 1) / fps;
+// アニメの尺の書き方（秒＋コマ、24コマ＝1秒）。23.976／24fps の動画は動画のコマ数そのまま、それ以外は秒数から直す
+export const koma = (c, fps) => Math.abs(fps - 24) < 0.1 ? c.b - c.a + 1 : Math.round((c.b - c.a + 1) / fps * 24);
+export const sk = k => Math.floor(k / 24) + '+' + (Math.round(k) % 24);
+const skSec = (x, fps) => sk(Math.round(Math.abs(fps - 24) < 0.1 ? x * fps : x * 24));
 
 // ---------- 境目からカットを作る ----------
 export function cutsFromBoundaries(res) {
@@ -68,7 +72,7 @@ function statsHtml(st, title) {
   const sz = SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + st.size[v], 0);
   const row = (L, obj, base) => L.map(([v, t]) => `<td>${t}<br><b>${obj[v]}</b> <span>${pct(obj[v], base)}</span></td>`).join('');
   return `<h3>${title}</h3>
-  <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${f1(st.mean)}秒</b></td><td>中央値<br><b>${f1(st.median)}秒</b></td><td>最長<br><b>${f1(st.max)}秒</b></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
+  <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${skSec(st.mean, R.video.fps)}</b> <span>${f1(st.mean)}秒</span></td><td>中央値<br><b>${skSec(st.median, R.video.fps)}</b> <span>${f1(st.median)}秒</span></td><td>最長<br><b>${skSec(st.max, R.video.fps)}</b> <span>${f1(st.max)}秒</span></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
   <table class="st"><tr><th>長さ</th>${BINS.map((b, i) => `<td>${b[2]}<br><b>${st.bins[i]}</b> <span>${pct(st.bins[i], st.n)}</span></td>`).join('')}</tr></table>
   <table class="st"><tr><th>サイズ<small>（割合は途中で変化を除く）</small></th>${row(SIZES.filter(x => x[0] !== 'CH'), st.size, sz)}<td>途中で変化<br><b>${st.size.CH}</b></td><td>未入力<br><b>${st.sizeUnset}</b></td></tr></table>
   <table class="st"><tr><th>アングル</th>${row(ANGLES, st.angle, st.n)}</tr></table>
@@ -126,7 +130,7 @@ function card(c) {
   im.style.backgroundSize = `100% ${rows * 100}%`; im.style.backgroundPosition = `0 ${rows > 1 ? q / (rows - 1) * 100 : 0}%`;
   const hd = document.createElement('div'); hd.className = 'hd';
   const t = c.a / R.video.fps;
-  hd.innerHTML = `<b>C${c.n}</b> <span>${f1(sec(c, R.video.fps))}秒</span> <span class="tc">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}　${c.part}</span>`;
+  hd.innerHTML = `<b>C${c.n}</b> <span>${sk(koma(c, R.video.fps))}（${f1(sec(c, R.video.fps))}秒）</span> <span class="tc">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}　${c.part}</span>`;
   el.append(im, hd);
   el.append(btnRow(c, 'size', SIZES, 'サイズ'), btnRow(c, 'angle', ANGLES, 'アングル'));
   const r = btnRow(c, 'subj', SUBJ, '被写体の数');
@@ -169,13 +173,13 @@ export const current = () => R;
 export function summaryText(rec) {
   const st = stats(rec), sz = SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + st.size[v], 0);
   const L = [`# ${rec.work || ''} ${rec.ep || ''}${rec.title ? '「' + rec.title + '」' : ''}`, '', `- 回のID：${rec.id}`, `- 動画：${rec.video.name}（${rec.video.frames}コマ、${f1(rec.video.fps)}fps）`, `- 記録した日：${new Date().toISOString().slice(0, 10)}`, '',
-    '## 集計（本編）', '', `カット ${st.n}、尺 ${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒、平均 ${f1(st.mean)}秒、中央値 ${f1(st.median)}秒、最長 ${f1(st.max)}秒、10秒以上のカットが尺に占める割合 ${pct(st.long10share, 1)}`, '',
+    '## 集計（本編）', '', `カット ${st.n}、尺 ${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒、平均 ${skSec(st.mean, rec.video.fps)}（${f1(st.mean)}秒）、中央値 ${skSec(st.median, rec.video.fps)}（${f1(st.median)}秒）、最長 ${skSec(st.max, rec.video.fps)}（${f1(st.max)}秒）、10秒以上のカットが尺に占める割合 ${pct(st.long10share, 1)}`, '',
     '| 長さ | ' + BINS.map(b => b[2]).join(' | ') + ' |', '|---|' + BINS.map(() => '---').join('|') + '|', '| カット | ' + st.bins.map((v, i) => `${v}（${pct(v, st.n)}）`).join(' | ') + ' |', '',
     '| サイズ | ' + SIZES.map(s => s[1]).join(' | ') + ' | 未入力 |', '|---|' + SIZES.map(() => '---').join('|') + '|---|', '| カット | ' + SIZES.map(([v]) => v === 'CH' ? st.size[v] : `${st.size[v]}（${pct(st.size[v], sz)}）`).join(' | ') + ` | ${st.sizeUnset} |`, '',
     '| アングル | ' + ANGLES.map(s => s[1]).join(' | ') + ' |', '|---|' + ANGLES.map(() => '---').join('|') + '|', '| カット | ' + ANGLES.map(([v]) => `${st.angle[v]}（${pct(st.angle[v], st.n)}）`).join(' | ') + ' |', '',
     `| 被写体 | BGオンリー | ` + SUBJ.map(s => s[1]).join(' | ') + ' |', '|---|---|' + SUBJ.map(() => '---').join('|') + '|', `| カット | ${st.bg}（${pct(st.bg, st.n)}） | ` + SUBJ.map(([v]) => `${st.subj[v]}（${pct(st.subj[v], st.n)}）`).join(' | ') + ' |', '',
-    '## メモ', '', rec.memo || '（なし）', '', '## カット', '', '| カット | 開始 | 秒数 | パート | サイズ | アングル | BGオンリー | 被写体 |', '|---|---|---|---|---|---|---|---|'];
-  for (const c of rec.cuts) { const t = c.a / rec.video.fps; L.push(`| ${c.n} | ${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')} | ${f1(sec(c, rec.video.fps))} | ${c.part} | ${c.size ? label(SIZES, c.size) : ''} | ${label(ANGLES, c.angle || '')} | ${c.bg ? '○' : ''} | ${c.subj ? label(SUBJ, c.subj) : ''} |`); }
+    '## メモ', '', rec.memo || '（なし）', '', '## カット', '', '| カット | 開始 | 尺（秒+コマ） | 秒数 | パート | サイズ | アングル | BGオンリー | 被写体 |', '|---|---|---|---|---|---|---|---|---|'];
+  for (const c of rec.cuts) { const t = c.a / rec.video.fps; L.push(`| ${c.n} | ${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')} | ${sk(koma(c, rec.video.fps))} | ${f1(sec(c, rec.video.fps))} | ${c.part} | ${c.size ? label(SIZES, c.size) : ''} | ${label(ANGLES, c.angle || '')} | ${c.bg ? '○' : ''} | ${c.subj ? label(SUBJ, c.subj) : ''} |`); }
   L.push('', '画像：img/ の各ファイルは25カットずつ（左に中のコマ、右上に頭、右下に尻）。');
   return L.join('\n');
 }
