@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>境目ツール（カットの境目を決める）</title>
+<script>
+// 複数スレッドで計算するための準備（初回だけ一度読み込み直す）
+if (!window.crossOriginIsolated && 'serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').then(() => {
+    if (!sessionStorage.getItem('cbt-coi')) { sessionStorage.setItem('cbt-coi', '1'); location.reload(); }
+  }).catch(() => {});
+}
+</script>
+<style>
+:root{
+  --bg:#f3f4f2; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#cfd5d2;
+  --sure:#2f8f5b; --ask:#e2a900; --mine:#2a62c9; --same:#8a948f; --focus:#d2462f; --part:#7a3fb0;
+  --ui:"Noto Sans JP","Hiragino Sans",system-ui,sans-serif; --num:"IBM Plex Mono",ui-monospace,monospace;
+  --tw:120px;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141817; --panel:#1d2321; --fg:#e7ece9; --muted:#9aa5a0; --line:#34403b;
+  --sure:#4cc285; --ask:#f0c03a; --mine:#6f9bff; --same:#76817c; --focus:#ff7a5c; --part:#c79bf2; color-scheme:dark}}
+@media (max-width:640px){:root{--tw:84px}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui)}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:grid;gap:8px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+h1{font-size:16px;margin:0}
+label{font-size:13px;display:inline-flex;align-items:center;gap:6px}
+input[type=text]{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:12em}
+.stat{font-family:var(--num);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stat b{color:var(--fg);font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+button,.filebtn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--sure);border-color:var(--sure);color:var(--panel)}
+button.primary{background:var(--mine);border-color:var(--mine);color:#fff}
+.help{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
+.key{display:inline-block;width:14px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+#status{font-size:13px}
+progress{width:220px;vertical-align:middle}
+main{padding:12px 16px 80px}
+#intro{max-width:46em;line-height:1.8;font-size:14px}
+#intro ol{padding-left:1.4em}
+#strip{display:flex;flex-wrap:wrap;align-items:stretch;row-gap:4px}
+.t{width:var(--tw);aspect-ratio:var(--ar);max-width:100%;background-color:var(--line);background-repeat:no-repeat;position:relative}
+.t.d::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--muted);opacity:.45}
+.t.x{opacity:.35}
+.g{width:7px;cursor:pointer;position:relative;flex:none}
+.g:hover::before{content:"";position:absolute;inset:0 2px;background:var(--mine);opacity:.6;border-radius:2px}
+.g.y{width:16px;background:repeating-linear-gradient(45deg,var(--ask) 0 4px,transparent 4px 8px);border-radius:3px}
+.g.y.xx{opacity:.35}
+.g.s{width:9px}
+.g.s::after{content:"";position:absolute;inset:0 3px;border-left:2px dashed var(--same)}
+.g.cur{outline:3px solid var(--focus);outline-offset:1px}
+.g.on{flex-basis:100%;width:auto;height:22px;display:flex;align-items:center;gap:8px;margin-top:6px;font-family:var(--num);font-size:11px;color:var(--muted)}
+.g.on::before{content:"";display:block;position:static;width:44px;height:6px;border-radius:3px;background:var(--mine);opacity:1}
+.g.on.mg::before{background:var(--sure)}
+.g.on.my::before{background:var(--mine);box-shadow:0 0 0 2px var(--ask)}
+.g.on:hover::before{opacity:.5}
+.g.on select,.head select{font:inherit;font-family:var(--ui);font-size:12px;padding:1px 4px;border:1px solid var(--line);border-radius:4px;background:var(--panel);color:var(--fg)}
+.g.on.pt select,.head.pt select{border-color:var(--part);color:var(--part);font-weight:600}
+.g.on.pt{border-top:2px solid var(--part);padding-top:4px;height:28px;margin-top:12px}
+.head{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:4px}
+#msg{padding:24px 0;color:var(--muted)}
+.err{color:var(--focus)}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>境目ツール</h1>
+    <label class="filebtn">動画を選ぶ<input id="file" type="file" accept="video/*,.mkv,.webm,.mp4,.m4v" hidden></label>
+    <label>回のID <input id="ep" type="text" placeholder="例：madoka-02" autocomplete="off"></label>
+    <span id="status">動画を選んでください</span>
+    <progress id="prog" max="1" value="0" hidden></progress>
+  </div>
+  <div class="top" id="tools" hidden>
+    <span class="stat">黄の未決 <b id="nu">–</b> ／ 足した <b id="na">–</b> ／ 外した <b id="nr">–</b> ／ パート <b id="np">–</b></span>
+    <div class="btns">
+      <button id="prev" type="button">前の未決（K）</button>
+      <button id="next" type="button">次の未決（J）</button>
+      <button id="done" type="button" aria-pressed="false">この回を終えた</button>
+      <button id="export" type="button" class="primary">書き出す</button>
+    </div>
+  </div>
+  <div class="help" id="help" hidden>
+    <span><i class="key" style="background:var(--sure)"></i>機械がほぼ確実とした境目</span>
+    <span><i class="key" style="background:repeating-linear-gradient(45deg,var(--ask) 0 3px,transparent 3px 6px)"></i>機械が迷った所（押すと境目→同じカット→境目…）</span>
+    <span><i class="key" style="background:var(--mine)"></i>あなたが付けた境目</span>
+    <span>コマの間を押すと境目を付け外し。黄に合わせて 1＝境目、2＝同じカット。上の細い線は1コマずつ並んだ所</span>
+    <span>パート：境目の行の選択肢で「ここから OP」などを選ぶ。本編（アバン・Aパート・Bパート）以外は薄く表示し、黄の数にも入れない</span>
+    <span id="save"></span>
+  </div>
+</header>
+<main>
+  <div id="intro">
+    <p>アニメの動画のカットの境目を、機械の候補を見ながら決めるツールです。動画はこのパソコンの中だけで処理し、どこにも送りません。</p>
+    <ol>
+      <li>「動画を選ぶ」で動画（MKV・MP4・WebM）を選び、「回のID」（例：madoka-02）を入れる。</li>
+      <li>機械が全部のコマを読み、境目の候補を出す（1話で10〜30分ほど。途中でこのタブを閉じない）。一度読んだ動画は、次に同じ動画を選べばすぐに開く。</li>
+      <li>コマの帯で、黄の所を「境目」か「同じカット」に決め、見落としを足す。境目の行の選択肢で、アバン・OP・Aパートなどのパートの頭を選ぶ。</li>
+      <li>「この回を終えた」を押してから「書き出す」。できたファイル（境目_回のID.json）を Claude に渡す。</li>
+    </ol>
+    <p>途中の答えはこのブラウザに残るので、閉じても同じ動画を選べば続きから始められます。Chrome（パソコン）で使ってください。</p>
+  </div>
+  <div id="strip"></div>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
