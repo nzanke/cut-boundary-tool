@@ -1,3 +1,5 @@
+// タブが裏に回っても遅くならない待ち方（setTimeout は裏のタブで1秒〜1分に間引かれる）
+const yieldNow = () => new Promise(r => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
 // 動画を頭から復号して、1コマずつ onFrame(frame, コマ番号) に渡す（WebCodecs）
 export async function decodeAll(meta, onFrame, onProgress) {
   let count = 0, err = null;
@@ -13,7 +15,7 @@ export async function decodeAll(meta, onFrame, onProgress) {
     if (first && !p.key) continue; first = false;
     while (dec.decodeQueueSize > 12) await new Promise(r => dec.addEventListener('dequeue', r, { once: true }));
     dec.decode(new EncodedVideoChunk({ type: p.key ? 'key' : 'delta', timestamp: p.ts, data: p.data }));
-    const now = performance.now(); if (now - last > 300) { last = now; onProgress && onProgress(count); await new Promise(r => setTimeout(r, 0)); }
+    const now = performance.now(); if (now - last > 300) { last = now; onProgress && onProgress(count); await yieldNow(); }
   }
   await dec.flush(); dec.close();
   if (err) throw err;
