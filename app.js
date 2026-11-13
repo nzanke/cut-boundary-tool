@@ -1,12 +1,16 @@
 // 境目ツール本体：動画の解析（カット検出＋TransNetV2）→ コマの帯で境目とパートを決める → 書き出す
 import { openVideo } from './demux.js';
+import { decodeAll as decodeVideo } from './video.js';
+import * as cuts from './cuts.js';
+import * as records from './records.js';
+import * as store from './store.js';
 
 const $ = id => document.getElementById(id);
 const BASE = new URL('./', location.href).href;
 const MAIN = new Set(['アバン', 'Aパート', 'Bパート']);
 const PARTS = ['', 'アバン', 'OP', 'Aパート', 'アイキャッチ', 'Bパート', 'ED', 'Cパート（本編に入れない）', '予告', 'その他'];
 const STEP = 6, PER = 100, COLS = 10;
-const VERSION = 1;
+const VERSION = 2;
 
 let file = null, KEY = '', meta = null;
 let A = null;           // 解析結果 {n, fps, w, h, codec, sc, tp, g24}
@@ -21,13 +25,13 @@ function idb() {
 async function idbGet(k) { try { const db = await idb(); return await new Promise(res => { const q = db.transaction('analysis').objectStore('analysis').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(null); }); } catch (e) { return null; } }
 async function idbPut(k, v) { try { const db = await idb(); await new Promise(res => { const t = db.transaction('analysis', 'readwrite'); t.objectStore('analysis').put(v, k); t.oncomplete = res; t.onerror = res; }); } catch (e) { } }
 function loadAnswers() {
-  try { const s = JSON.parse(localStorage.getItem('cbt-ans:' + KEY) || 'null'); if (s) { ch = {}; for (const k in s.changes || {}) ch[+k] = s.changes[k]; parts = {}; for (const k in s.parts || {}) parts[+k] = s.parts[k]; done = !!s.done; if (s.ep && !$('ep').value) $('ep').value = s.ep; return true; } } catch (e) { }
+  try { const s = JSON.parse(localStorage.getItem('cbt-ans:' + KEY) || 'null'); if (s) { ch = {}; for (const k in s.changes || {}) ch[+k] = s.changes[k]; parts = {}; for (const k in s.parts || {}) parts[+k] = s.parts[k]; done = !!s.done; for (const k of ['ep', 'work', 'epno', 'subt']) if (s[k] && !$(k).value) $(k).value = s[k]; return true; } } catch (e) { }
   return false;
 }
 function saveAnswers() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem('cbt-ans:' + KEY, JSON.stringify({ changes: ch, parts, done, ep: $('ep').value.trim(), at: Date.now() })); $('save').textContent = 'このブラウザに保存しました'; }
+    try { localStorage.setItem('cbt-ans:' + KEY, JSON.stringify({ changes: ch, parts, done, ep: $('ep').value.trim(), work: $('work').value.trim(), epno: $('epno').value.trim(), subt: $('subt').value.trim(), at: Date.now() })); $('save').textContent = 'このブラウザに保存しました'; }
     catch (e) { $('save').textContent = '保存できませんでした（ブラウザの保存領域がいっぱいかもしれません）'; }
   }, 400);
 }
@@ -38,26 +42,7 @@ function prog(v, max) { const p = $('prog'); if (v == null) { p.hidden = true; r
 const tc = f => { const s = f / A.fps; return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
 
 // ---------- 復号 ----------
-async function decodeAll(onFrame, onProgress) {
-  let count = 0, err = null;
-  const dec = new VideoDecoder({ output: f => { try { onFrame(f, count++); } catch (e) { err = e; } finally { f.close(); } }, error: e => { err = e; } });
-  const cfg = { codec: meta.codec, codedWidth: meta.width, codedHeight: meta.height, hardwareAcceleration: 'no-preference' };
-  if (meta.description) cfg.description = meta.description;
-  const sup = await VideoDecoder.isConfigSupported(cfg);
-  if (!sup.supported) throw new Error('このブラウザではこの動画（' + meta.codec + '）を読めません。Chrome の最新版で試すか、H.264 の MP4 に変換してください');
-  dec.configure(cfg);
-  let first = true, last = 0;
-  for await (const p of meta.packets()) {
-    if (err) throw err;
-    if (first && !p.key) continue; first = false;
-    while (dec.decodeQueueSize > 12) await new Promise(r => dec.addEventListener('dequeue', r, { once: true }));
-    dec.decode(new EncodedVideoChunk({ type: p.key ? 'key' : 'delta', timestamp: p.ts, data: p.data }));
-    const now = performance.now(); if (now - last > 300) { last = now; onProgress(count); await new Promise(r => setTimeout(r, 0)); }
-  }
-  await dec.flush(); dec.close();
-  if (err) throw err;
-  return count;
-}
+const decodeAll = (onFrame, onProgress) => decodeVideo(meta, onFrame, onProgress);
 
 // ---------- 1回目：全部のコマを読んで、カット検出の値と TransNetV2 の確率を出す ----------
 async function analyze() {
@@ -85,7 +70,9 @@ async function analyze() {
   worker.postMessage({ type: 'init', base: BASE, threads });
   const flushT = () => { if (!tn) return; worker.postMessage({ type: 'frames', data: tbuf, n: tn }, [tbuf.buffer]); tbuf = new Uint8Array(500 * FS); tn = 0; };
   const t0 = performance.now();
+  let ts0 = null, ts1 = null;
   const n = await decodeAll((f) => {
+    if (ts0 === null) ts0 = f.timestamp; ts1 = f.timestamp;
     // TransNetV2 の入力：240x135 に縮めてから 5x5 の平均で 48x27（面積平均）
     cA.drawImage(f, 0, 0, 240, 135);
     const a = cA.getImageData(0, 0, 240, 135).data, o = tn * FS;
@@ -134,7 +121,8 @@ async function analyze() {
   worker.terminate();
   if (tnErr) throw new Error('TransNetV2 の計算に失敗しました：' + tnErr);
   const G = new Uint8Array(n * 432); g24.forEach((g, i) => G.set(g, i * 432));
-  return { v: VERSION, n, fps: meta.fps, w: meta.width, h: meta.height, codec: meta.codec, sc: Float32Array.from(sc), tp: tnProbs, g24: G };
+  const fpsM = n > 1 && ts1 > ts0 ? (n - 1) * 1e6 / (ts1 - ts0) : meta.fps;
+  return { v: VERSION, n, fps: Math.abs(fpsM - 24000 / 1001) < 0.02 ? 24000 / 1001 : Math.abs(fpsM - 30000 / 1001) < 0.02 ? 30000 / 1001 : fpsM, w: meta.width, h: meta.height, codec: meta.codec, sc: Float32Array.from(sc), tp: tnProbs, g24: G };
 }
 
 // ---------- 候補（今の境目ビューアと同じ決め方） ----------
@@ -307,7 +295,7 @@ async function start(f) {
   } catch (e) { console.error(e); prog(null); status(String(e && e.message || e), true); $('intro').hidden = false; }
 }
 $('file').onchange = e => { const f = e.target.files[0]; if (f) start(f); };
-$('ep').oninput = () => { if (KEY) saveAnswers(); };
+for (const k of ['ep', 'work', 'epno', 'subt']) $(k).oninput = () => { if (KEY) saveAnswers(); };
 $('next').onclick = () => go(1); $('prev').onclick = () => go(-1);
 $('done').onclick = () => { done = !done; $('done').setAttribute('aria-pressed', done); saveAnswers(); };
 $('export').onclick = exportJson;
@@ -318,5 +306,61 @@ document.addEventListener('keydown', e => {
   else if ((e.key === '1' || e.key === '2') && yel[cur] !== undefined) { set(yel[cur], e.key === '1' ? 1 : 0); go(1); e.preventDefault(); }
 });
 window.__cbtStart = start;
+
+// ---------- 画面の切り替え ----------
+function view(v) {
+  document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-current', b.dataset.view === v));
+  document.querySelectorAll('.view').forEach(e => { const on = e.dataset.v === v; if (e.id === 'tools' || e.id === 'help') e.hidden = !on || !D; else e.hidden = !on; });
+  if (v === 'records') records.loadList();
+  if (v === 'settings') { const st = store.settings(); $('setRepo').value = st.repo; $('setToken').value = ''; $('setMsg').textContent = st.token ? '鍵は入っています' : '鍵はまだ入っていません'; }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => view(b.dataset.view));
+const hh = () => document.documentElement.style.setProperty('--hh', document.querySelector('header').offsetHeight + 'px');
+new ResizeObserver(hh).observe(document.querySelector('header'));
+window.addEventListener('cbt-view', e => { view(e.detail); $('cutEmpty').hidden = true; $('cutBody').hidden = false; });
+records.init();
+
+// ---------- 境目を確定してカットへ ----------
+let sheetBlobs = null;
+$('toCuts').onclick = async () => {
+  const ep = $('ep').value.trim();
+  if (!ep || !/^[A-Za-z0-9_.-]+$/.test(ep)) { status('「回のID」を半角の英数字（と - _ .）で入れてください（例：madoka-02）', true); $('ep').focus(); return; }
+  const r = result();
+  if (r.undecided.length && !window.confirm(`本編に未決の黄が ${r.undecided.length} 残っています。「同じカット」として扱って進みますか？`)) return;
+  const list = cuts.cutsFromBoundaries(r);
+  const rec = { v: 1, id: ep, work: $('work').value.trim(), ep: $('epno').value.trim(), title: $('subt').value.trim(), memo: '', created: new Date().toISOString(),
+    video: r.video, parts: r.parts, lo: r.lo, hi: r.hi, undecided: r.undecided.length, cuts: list, boundary: r };
+  try {
+    $('toCuts').disabled = true;
+    sheetBlobs = await cuts.makeSheets(meta, list, (n, last) => { status(`カットの画像を作っています ${n} / ${last}`); prog(n, last); });
+    prog(null);
+    status(`${list.length} カットを作りました${r.undecided.length ? `（未決の黄 ${r.undecided.length} は「同じカット」として扱いました）` : ''}`);
+    cuts.show(rec, sheetBlobs.map(b => URL.createObjectURL(b)), { editable: true });
+    view('cuts'); $('cutEmpty').hidden = true; $('cutBody').hidden = false;
+  } catch (e) { console.error(e); status(String(e.message || e), true); prog(null); }
+  $('toCuts').disabled = false;
+};
+$('recSaveBtn').onclick = async () => {
+  const rec = cuts.current(); if (!rec) return;
+  $('recSaveBtn').disabled = true; $('recProg').hidden = false;
+  try {
+    const blobs = sheetBlobs;
+    await cuts.saveRecord(blobs, (k, n) => { $('recSave').textContent = `保存しています ${k} / ${n}`; $('recProg').max = n; $('recProg').value = k; });
+    sheetBlobs = null; // 画像は1回目の保存で入ったので、次からは数字とメモだけを保存する
+    $('recSave').textContent = '記録に保存しました（' + new Date().toLocaleTimeString() + '）';
+  } catch (e) { $('recSave').textContent = String(e.message || e); }
+  $('recSaveBtn').disabled = false; $('recProg').hidden = true;
+};
+
+// ---------- 設定 ----------
+$('setSave').onclick = async () => {
+  store.saveSettings($('setToken').value.trim() || undefined, $('setRepo').value.trim());
+  $('setMsg').textContent = '確かめています…';
+  try { const r = await store.check(); $('setMsg').textContent = `つながりました：${r.name}${r.private ? '（非公開）' : '（注意：公開のリポジトリです。カットの画像が誰でも見られます）'}`; }
+  catch (e) { $('setMsg').textContent = String(e.message || e); }
+  $('setToken').value = '';
+};
+$('setClear').onclick = () => { store.saveSettings('', undefined); $('setMsg').textContent = '鍵を消しました'; };
 // 動作確認用（答えを外から入れる）
 window.__cbtTest = { set(c, p) { ch = {}; for (const k in c) ch[+k] = c[k]; parts = {}; for (const k in p) parts[+k] = p[k]; refreshParts(); }, result: () => result() };

@@ -67,27 +67,70 @@ main{padding:12px 16px 80px}
 .head{flex-basis:100%;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:4px}
 #msg{padding:24px 0;color:var(--muted)}
 .err{color:var(--focus)}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav button[aria-current="true"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.view[hidden]{display:none}
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px;display:grid;gap:4px}
+.card.isbg{border-color:var(--same)}
+.card .im{aspect-ratio:480/180;background:var(--line) no-repeat;border-radius:4px}
+.card .hd{font-size:12px;display:flex;gap:8px;align-items:baseline}
+.card .hd span{font-family:var(--num)}
+.card .tc{color:var(--muted);margin-left:auto}
+.card .row{display:flex;flex-wrap:wrap;gap:3px}
+.card .row button{font-size:11px;padding:2px 6px;border-radius:4px}
+.card .row button[aria-pressed="true"]{background:var(--mine);border-color:var(--mine);color:#fff}
+.card .row button.bgb[aria-pressed="true"]{background:var(--same);border-color:var(--same)}
+.filters{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;margin:8px 0}
+.filters .grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.chip{font-size:12px;padding:3px 8px;border-radius:12px}
+.chip[aria-pressed="true"]{background:var(--mine);border-color:var(--mine);color:#fff}
+.filters input[type=number]{width:5em;font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.filters select{font:inherit;font-size:12px}
+#stats h3{font-size:14px;margin:12px 0 4px}
+#stats summary{cursor:pointer;font-size:14px;font-weight:600;margin-top:10px}
+.filters{position:sticky;top:var(--hh,0px);background:var(--bg);z-index:3;padding:6px 0;border-bottom:1px solid var(--line)}
+table.st{border-collapse:collapse;margin:4px 0;font-size:12px}
+table.st td,table.st th{border:1px solid var(--line);padding:3px 8px;text-align:center;vertical-align:top}
+table.st th{text-align:left;background:var(--bg)}
+table.st b{font-size:14px;font-family:var(--num)}
+table.st span{color:var(--muted);font-family:var(--num)}
+table.cmp{border-collapse:collapse;font-size:12px}
+table.cmp th,table.cmp td{border:1px solid var(--line);padding:3px 6px;text-align:right;font-family:var(--num);white-space:nowrap}
+table.cmp th{background:var(--bg);font-family:var(--ui);position:sticky;top:0}
+table.cmp td.nm{text-align:left;font-family:var(--ui);white-space:normal;min-width:12em}
+.note{font-size:12px;color:var(--muted)}
+textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
+.form{display:grid;gap:10px;max-width:40em;font-size:14px}
+.form input[type=text],.form input[type=password]{width:100%}
 </style>
 </head>
 <body>
 <header>
   <div class="top">
-    <h1>境目ツール</h1>
+    <h1>カット記録ツール</h1>
+    <nav><button type="button" data-view="new" aria-current="true">新しい回</button><button type="button" data-view="cuts">カット</button><button type="button" data-view="records">過去の記録</button><button type="button" data-view="settings">設定</button></nav>
+  </div>
+  <div class="top view" data-v="new">
     <label class="filebtn">動画を選ぶ<input id="file" type="file" accept="video/*,.mkv,.webm,.mp4,.m4v" hidden></label>
-    <label>回のID <input id="ep" type="text" placeholder="例：madoka-02" autocomplete="off"></label>
+    <label>作品名 <input id="work" type="text" placeholder="例：魔法少女まどか☆マギカ" autocomplete="off"></label>
+    <label>話数 <input id="epno" type="text" placeholder="例：2話" autocomplete="off" style="width:6em"></label>
+    <label>サブタイトル <input id="subt" type="text" autocomplete="off"></label>
+    <label>回のID <input id="ep" type="text" placeholder="例：madoka-02" autocomplete="off" style="width:9em"></label>
     <span id="status">動画を選んでください</span>
     <progress id="prog" max="1" value="0" hidden></progress>
   </div>
-  <div class="top" id="tools" hidden>
+  <div class="top view" data-v="new" id="tools" hidden>
     <span class="stat">黄の未決 <b id="nu">–</b> ／ 足した <b id="na">–</b> ／ 外した <b id="nr">–</b> ／ パート <b id="np">–</b></span>
     <div class="btns">
       <button id="prev" type="button">前の未決（K）</button>
       <button id="next" type="button">次の未決（J）</button>
       <button id="done" type="button" aria-pressed="false">この回を終えた</button>
-      <button id="export" type="button" class="primary">書き出す</button>
+      <button id="export" type="button">Claude 向けに書き出す</button>
+      <button id="toCuts" type="button" class="primary">境目を確定してカットへ</button>
     </div>
   </div>
-  <div class="help" id="help" hidden>
+  <div class="help view" data-v="new" id="help" hidden>
     <span><i class="key" style="background:var(--sure)"></i>機械がほぼ確実とした境目</span>
     <span><i class="key" style="background:repeating-linear-gradient(45deg,var(--ask) 0 3px,transparent 3px 6px)"></i>機械が迷った所（押すと境目→同じカット→境目…）</span>
     <span><i class="key" style="background:var(--mine)"></i>あなたが付けた境目</span>
@@ -97,17 +140,56 @@ main{padding:12px 16px 80px}
   </div>
 </header>
 <main>
+ <section class="view" data-v="new">
   <div id="intro">
     <p>アニメの動画のカットの境目を、機械の候補を見ながら決めるツールです。動画はこのパソコンの中だけで処理し、どこにも送りません。</p>
     <ol>
       <li>「動画を選ぶ」で動画（MKV・MP4・WebM）を選び、「回のID」（例：madoka-02）を入れる。</li>
       <li>機械が全部のコマを読み、境目の候補を出す（1話で10〜30分ほど。途中でこのタブを閉じない）。一度読んだ動画は、次に同じ動画を選べばすぐに開く。</li>
       <li>コマの帯で、黄の所を「境目」か「同じカット」に決め、見落としを足す。境目の行の選択肢で、アバン・OP・Aパートなどのパートの頭を選ぶ。</li>
-      <li>「この回を終えた」を押してから「書き出す」。できたファイル（境目_回のID.json）を Claude に渡す。</li>
+      <li>「境目を確定してカットへ」を押す。全カットのショット長が出るので、カードごとにサイズ・アングル・BGオンリー・被写体の数を選ぶ。集計と絞り込み（超アップだけ、10秒以上だけ など）はその場で出る。</li>
+      <li>「記録に保存」で、数字・カットの画像・メモを非公開の記録用リポジトリに保存する（最初に「設定」で鍵を入れる）。「過去の記録」で回どうし・作品どうしを比べられる。</li>
     </ol>
+    <p>Claude に演出の分析を頼むときは、境目を決めたあと「Claude 向けに書き出す」でできるファイル（境目_回のID.json）を渡す。</p>
     <p>途中の答えはこのブラウザに残るので、閉じても同じ動画を選べば続きから始められます。Chrome（パソコン）で使ってください。</p>
   </div>
   <div id="strip"></div>
+ </section>
+ <section class="view" data-v="cuts" hidden>
+  <h2 id="cutTitle" style="font-size:16px">カット</h2>
+  <p id="cutEmpty" class="note">「新しい回」で境目を確定するか、「過去の記録」から回を開くと、ここにカットが並びます。</p>
+  <div id="cutBody" hidden>
+   <div class="top"><button id="recSaveBtn" type="button" class="primary">記録に保存</button><span id="recSave" class="note"></span><progress id="recProg" max="1" value="0" hidden></progress></div>
+   <label class="note" for="memo" style="display:block;margin-top:8px">この回のメモ（記録に一緒に残る）</label>
+   <textarea id="memo"></textarea>
+   <div id="stats"></div>
+   <div class="filters">
+    <div class="grp">サイズ <span id="fSize"></span></div>
+    <div class="grp">アングル <span id="fAngle"></span></div>
+    <div class="grp">被写体 <span id="fSubj"></span></div>
+    <div class="grp"><select id="fBg"><option value="all">BGオンリーも含む</option><option value="bg">BGオンリーだけ</option><option value="nobg">BGオンリーを除く</option></select></div>
+    <div class="grp">秒数 <input id="fMin" type="number" min="0" step="0.5" placeholder="下限">〜<input id="fMax" type="number" min="0" step="0.5" placeholder="上限"></div>
+    <div class="grp"><select id="fPart"></select></div>
+    <button id="fClear" type="button">絞り込みを外す</button>
+    <span id="nShown" class="note"></span>
+   </div>
+   <div id="cards"></div>
+  </div>
+ </section>
+ <section class="view" data-v="records" hidden>
+  <div class="top"><h2 style="font-size:16px;margin:0">過去の記録</h2><label><input id="byWork" type="checkbox"> 作品ごとにまとめる</label><button id="recReload" type="button">読み直す</button></div>
+  <p id="recMsg" class="note"></p>
+  <div id="recTable" style="overflow:auto"></div>
+ </section>
+ <section class="view" data-v="settings" hidden>
+  <div class="form">
+   <h2 style="font-size:16px;margin:0">記録の保存先</h2>
+   <p class="note">記録は非公開の GitHub リポジトリに保存します。鍵（fine-grained personal access token。記録用リポジトリだけを選び、Contents を Read and write にしたもの）を入れてください。鍵はこのブラウザの中にだけ保存し、GitHub 以外には送りません。</p>
+   <label>リポジトリ <input id="setRepo" type="text" placeholder="nzanke/cut-records"></label>
+   <label>鍵（トークン） <input id="setToken" type="password" autocomplete="off" placeholder="github_pat_…"></label>
+   <div class="top"><button id="setSave" type="button" class="primary">保存して確かめる</button><button id="setClear" type="button">鍵を消す</button><span id="setMsg" class="note"></span></div>
+  </div>
+ </section>
 </main>
 <script type="module" src="app.js"></script>
 </body>
