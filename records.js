@@ -1,6 +1,6 @@
 // 過去の記録：一覧・開く・回どうし／作品どうしの比較
 import * as store from './store.js';
-import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk, backToWork, logStats, medianOf } from './cuts.js';
+import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk, backToWork, logStats, medianOf, indexEntry } from './cuts.js';
 
 const $ = id => document.getElementById(id);
 let IDX = [];
@@ -12,6 +12,10 @@ export async function loadList() {
   try {
     const t = await store.readText('records/index.json');
     IDX = t ? JSON.parse(t) : [];
+    // 古いページで保存された回は一覧に各カットの長さ・SDlog が無いので、記録の本体から計算して補う
+    await Promise.all(IDX.filter(r => r.sdLog == null || !r.lens).map(async r => {
+      try { const rec = JSON.parse(await store.readText(`records/${r.id}/record.json`)); const e = indexEntry(rec); Object.assign(r, { fps: e.fps, lens: e.lens, median: e.median, aslLog: e.aslLog, sdLog: e.sdLog }); } catch (e) { }
+    }));
     $('recMsg').textContent = IDX.length ? '' : 'まだ記録がありません。「新しい回」で動画を読み、カットを決めて保存すると、ここに並びます。';
   } catch (e) { $('recMsg').textContent = String(e.message || e); IDX = []; }
   renderTable();
