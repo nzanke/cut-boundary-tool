@@ -160,15 +160,21 @@ function draft() { clearTimeout(saveT); saveT = setTimeout(() => { try { localSt
 function loadDraft() {
   try { const d = JSON.parse(localStorage.getItem('cbt-rec:' + R.id) || 'null'); if (!d) return; const m = new Map(d.cuts.map(x => [x.n, x])); for (const c of R.cuts) { const x = m.get(c.n); if (x) Object.assign(c, { size: x.size, angle: x.angle, bg: x.bg, subj: x.subj }); } if (d.memo != null) R.memo = d.memo; } catch (e) { }
 }
+// 作業中の新しい回（過去の記録を開いても、ここから戻れる）
+let WORK = null;
 export function show(rec, sheetUrls, opt = {}) {
+  if (!opt.saved) WORK = { rec, urls: sheetUrls, opt };
   R = rec; urls = sheetUrls; editable = opt.editable !== false;
+  const bk = $('backWork'); if (bk) { bk.hidden = !(WORK && WORK.rec !== R); bk.textContent = WORK ? `← 作業中の回（${WORK.rec.id}）に戻る` : ''; }
   if (opt.draft !== false) loadDraft();
   $('cutTitle').textContent = `${rec.work || ''} ${rec.ep || ''}${rec.title ? '「' + rec.title + '」' : ''}（${rec.id}）`;
   $('memo').value = rec.memo || ''; $('memo').oninput = () => { R.memo = $('memo').value; draft(); };
   $('recSave').textContent = opt.saved ? '記録から開きました' : '';
   filtersInit(); render();
 }
-export function setSheetUrl(s, u) { urls[s] = u; document.querySelectorAll(`.im[data-s="${s}"]`).forEach(e => e.style.backgroundImage = `url(${u})`); }
+export function backToWork() { if (WORK) show(WORK.rec, WORK.urls, { ...WORK.opt, draft: false }); }
+// rec を渡したときは、その回を表示しているときだけ差し込む（別の回に移ったあとに届いた画像で混ざらないように）
+export function setSheetUrl(s, u, rec) { if (rec && rec !== R) return; urls[s] = u; document.querySelectorAll(`.im[data-s="${s}"]`).forEach(e => e.style.backgroundImage = `url(${u})`); }
 export const current = () => R;
 
 // ---------- 記録の文書 ----------

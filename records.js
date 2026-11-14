@@ -1,6 +1,6 @@
 // 過去の記録：一覧・開く・回どうし／作品どうしの比較
 import * as store from './store.js';
-import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk } from './cuts.js';
+import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk, backToWork } from './cuts.js';
 
 const $ = id => document.getElementById(id);
 let IDX = [];
@@ -55,8 +55,8 @@ export async function openRecord(id, onShown) {
     show(rec, urls, { saved: true, draft: true });
     $('recMsg').textContent = '';
     let k = 0;
-    const next = async () => { while (k < ns) { const s = k++; const b = await store.readBlob(`records/${id}/img/${String(s).padStart(2, '0')}.jpg`); if (b) setSheetUrl(s, URL.createObjectURL(b)); } };
+    const next = async () => { while (k < ns) { const s = k++; const b = await store.readBlob(`records/${id}/img/${String(s).padStart(2, '0')}.jpg`); if (b) setSheetUrl(s, URL.createObjectURL(b), rec); } };
     await Promise.all([next(), next(), next()]);
   } catch (e) { $('recMsg').textContent = String(e.message || e); }
 }
-export function init() { $('byWork').onchange = renderTable; $('recReload').onclick = loadList; }
+export function init() { $('backWork').onclick = () => { backToWork(); window.scrollTo(0, 0); }; $('byWork').onchange = renderTable; $('recReload').onclick = loadList; }
