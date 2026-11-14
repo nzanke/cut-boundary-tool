@@ -52,13 +52,21 @@ export async function makeSheets(meta, cuts, onProgress) {
 }
 
 // ---------- 集計 ----------
+// カット長の対数（10を底）の平均と標準偏差：ASLlog・SDlog（Kohara & Niimi 2013、一藤 2022 と同じ指標）
+export function logStats(secs) {
+  const l = secs.filter(x => x > 0).map(Math.log10), n = l.length;
+  if (!n) return { aslLog: 0, sdLog: 0 };
+  const m = l.reduce((a, b) => a + b, 0) / n;
+  return { aslLog: m, sdLog: n > 1 ? Math.sqrt(l.reduce((a, b) => a + (b - m) ** 2, 0) / (n - 1)) : 0 };
+}
+export const medianOf = s => { s = [...s].sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; };
 export function stats(rec, list) {
   const cuts = list || rec.cuts, fps = rec.video.fps, s = cuts.map(c => sec(c, fps)).sort((a, b) => a - b);
   const n = s.length, tot = s.reduce((a, b) => a + b, 0);
   const med = n ? (n % 2 ? s[n >> 1] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0;
   const cnt = (key, L) => Object.fromEntries(L.map(([v]) => [v, cuts.filter(c => (key === 'angle' ? (c.angle || '') : c[key]) === v).length]));
   return {
-    n, total: tot, mean: n ? tot / n : 0, median: med, max: n ? s[n - 1] : 0,
+    n, total: tot, mean: n ? tot / n : 0, median: med, max: n ? s[n - 1] : 0, ...logStats(s),
     bins: BINS.map(([lo, hi]) => s.filter(x => x >= lo && x < hi).length),
     long10share: tot ? s.filter(x => x >= 10).reduce((a, b) => a + b, 0) / tot : 0,
     size: cnt('size', SIZES), sizeUnset: cuts.filter(c => !c.size && !c.bg).length,
@@ -72,7 +80,7 @@ function statsHtml(st, title) {
   const sz = SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + st.size[v], 0);
   const row = (L, obj, base) => L.map(([v, t]) => `<td>${t}<br><b>${obj[v]}</b> <span>${pct(obj[v], base)}</span></td>`).join('');
   return `<h3>${title}</h3>
-  <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${skSec(st.mean, R.video.fps)}</b> <span>${f1(st.mean)}秒</span></td><td>中央値<br><b>${skSec(st.median, R.video.fps)}</b> <span>${f1(st.median)}秒</span></td><td>最長<br><b>${skSec(st.max, R.video.fps)}</b> <span>${f1(st.max)}秒</span></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
+  <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${skSec(st.mean, R.video.fps)}</b> <span>${f1(st.mean)}秒</span></td><td>中央値<br><b>${skSec(st.median, R.video.fps)}</b> <span>${f1(st.median)}秒</span></td><td>SDlog（ばらつき）<br><b>${st.sdLog.toFixed(3)}</b></td><td>最長<br><b>${skSec(st.max, R.video.fps)}</b> <span>${f1(st.max)}秒</span></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
   <table class="st"><tr><th>長さ</th>${BINS.map((b, i) => `<td>${b[2]}<br><b>${st.bins[i]}</b> <span>${pct(st.bins[i], st.n)}</span></td>`).join('')}</tr></table>
   <table class="st"><tr><th>サイズ<small>（割合は途中で変化を除く）</small></th>${row(SIZES.filter(x => x[0] !== 'CH'), st.size, sz)}<td>途中で変化<br><b>${st.size.CH}</b></td><td>未入力<br><b>${st.sizeUnset}</b></td></tr></table>
   <table class="st"><tr><th>アングル</th>${row(ANGLES, st.angle, st.n)}</tr></table>
@@ -181,7 +189,7 @@ export const current = () => R;
 export function summaryText(rec) {
   const st = stats(rec), sz = SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + st.size[v], 0);
   const L = [`# ${rec.work || ''} ${rec.ep || ''}${rec.title ? '「' + rec.title + '」' : ''}`, '', `- 回のID：${rec.id}`, `- 動画：${rec.video.name}（${rec.video.frames}コマ、${f1(rec.video.fps)}fps）`, `- 記録した日：${new Date().toISOString().slice(0, 10)}`, '',
-    '## 集計（本編）', '', `カット ${st.n}、尺 ${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒、平均 ${skSec(st.mean, rec.video.fps)}（${f1(st.mean)}秒）、中央値 ${skSec(st.median, rec.video.fps)}（${f1(st.median)}秒）、最長 ${skSec(st.max, rec.video.fps)}（${f1(st.max)}秒）、10秒以上のカットが尺に占める割合 ${pct(st.long10share, 1)}`, '',
+    '## 集計（本編）', '', `カット ${st.n}、尺 ${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒、平均 ${skSec(st.mean, rec.video.fps)}（${f1(st.mean)}秒）、中央値 ${skSec(st.median, rec.video.fps)}（${f1(st.median)}秒）、SDlog ${st.sdLog.toFixed(3)}（ASLlog ${st.aslLog.toFixed(3)}）、最長 ${skSec(st.max, rec.video.fps)}（${f1(st.max)}秒）、10秒以上のカットが尺に占める割合 ${pct(st.long10share, 1)}`, '',
     '| 長さ | ' + BINS.map(b => b[2]).join(' | ') + ' |', '|---|' + BINS.map(() => '---').join('|') + '|', '| カット | ' + st.bins.map((v, i) => `${v}（${pct(v, st.n)}）`).join(' | ') + ' |', '',
     '| サイズ | ' + SIZES.map(s => s[1]).join(' | ') + ' | 未入力 |', '|---|' + SIZES.map(() => '---').join('|') + '|---|', '| カット | ' + SIZES.map(([v]) => v === 'CH' ? st.size[v] : `${st.size[v]}（${pct(st.size[v], sz)}）`).join(' | ') + ` | ${st.sizeUnset} |`, '',
     '| アングル | ' + ANGLES.map(s => s[1]).join(' | ') + ' |', '|---|' + ANGLES.map(() => '---').join('|') + '|', '| カット | ' + ANGLES.map(([v]) => `${st.angle[v]}（${pct(st.angle[v], st.n)}）`).join(' | ') + ' |', '',
@@ -193,7 +201,7 @@ export function summaryText(rec) {
 }
 export function indexEntry(rec) {
   const st = stats(rec);
-  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, bg: st.bg, subj: st.subj };
+  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, bg: st.bg, subj: st.subj };
 }
 export async function saveRecord(blobs, onProgress) {
   const rec = R; rec.updated = new Date().toISOString();

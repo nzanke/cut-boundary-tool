@@ -1,6 +1,6 @@
 // 過去の記録：一覧・開く・回どうし／作品どうしの比較
 import * as store from './store.js';
-import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk, backToWork } from './cuts.js';
+import { SIZES, ANGLES, SUBJ, BINS, show, setSheetUrl, sk, backToWork, logStats, medianOf } from './cuts.js';
 
 const $ = id => document.getElementById(id);
 let IDX = [];
@@ -20,29 +20,31 @@ function agg(rows) { // 作品ごとにまとめる（カット数で重みづ�
   const by = new Map();
   for (const r of rows) {
     const k = r.work || '（作品名なし）';
-    if (!by.has(k)) by.set(k, { id: '', work: k, ep: '', title: rows.filter(x => (x.work || '（作品名なし）') === k).length + '話', n: 0, total: 0, mean: 0, median: null, long10: 0, bins: BINS.map(() => 0), size: {}, sizeUnset: 0, angle: {}, bg: 0, subj: {} });
+    if (!by.has(k)) by.set(k, { id: '', work: k, ep: '', title: rows.filter(x => (x.work || '（作品名なし）') === k).length + '話', n: 0, total: 0, mean: 0, median: null, secs: [], allLens: true, long10: 0, bins: BINS.map(() => 0), size: {}, sizeUnset: 0, angle: {}, bg: 0, subj: {} });
     const a = by.get(k);
     a.n += r.n; a.total += r.total; a.long10 += r.long10share * r.total; a.bg += r.bg; a.sizeUnset += r.sizeUnset;
+    if (r.lens && r.fps) a.secs.push(...r.lens.map(f => f / r.fps)); else a.allLens = false;
     r.bins.forEach((v, i) => a.bins[i] += v);
     for (const o of ['size', 'angle', 'subj']) for (const k2 in r[o]) a[o][k2] = (a[o][k2] || 0) + r[o][k2];
   }
-  return [...by.values()].map(a => ({ ...a, mean: a.n ? a.total / a.n : 0, long10share: a.total ? a.long10 / a.total : 0 }));
+  // 中央値・SDlog は全カットの長さをまとめて計算（各カットの長さを持たない古い記録が混ざるときは出さない）
+  return [...by.values()].map(a => ({ ...a, mean: a.n ? a.total / a.n : 0, long10share: a.total ? a.long10 / a.total : 0, ...(a.allLens && a.secs.length ? { median: medianOf(a.secs), ...logStats(a.secs) } : { median: null, sdLog: null }) }));
 }
 function renderTable() {
   const byWork = $('byWork').checked;
   const rows = byWork ? agg(IDX) : [...IDX].sort((a, b) => (a.work || '').localeCompare(b.work || '', 'ja') || String(a.ep).localeCompare(String(b.ep), 'ja', { numeric: true }));
   const sz = r => SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + (r.size[v] || 0), 0);
-  const head = `<tr><th>${byWork ? '作品' : '回'}</th><th>カット</th><th>尺</th><th>平均</th>${byWork ? '' : '<th>中央値</th>'}<th>2秒未満</th><th>10秒以上の尺</th>`
+  const head = `<tr><th>${byWork ? '作品' : '回'}</th><th>カット</th><th>尺</th><th>平均</th><th>中央値</th><th>SDlog</th><th>2秒未満</th><th>10秒以上の尺</th>`
     + SIZES.filter(x => x[0] !== 'CH').map(s => `<th>${s[1]}</th>`).join('') + ANGLES.filter(x => x[0]).map(a => `<th>${a[1]}</th>`).join('')
     + `<th>BGオンリー</th>` + SUBJ.map(s => `<th>被写体${s[1]}</th>`).join('') + (byWork ? '' : '<th></th>') + '</tr>';
   const body = rows.map(r => `<tr><td class="nm">${byWork ? `${r.work}<br><small>${r.title}</small>` : `${r.work || ''} ${r.ep || ''}<br><small>${r.title || ''}（${r.id}）</small>`}</td>
-    <td>${r.n}</td><td>${Math.floor(r.total / 60)}分</td><td><b>${sk(Math.round(r.mean * 24))}</b><br>${f1(r.mean)}秒</td>${byWork ? '' : `<td>${sk(Math.round(r.median * 24))}<br>${f1(r.median)}秒</td>`}
+    <td>${r.n}</td><td>${Math.floor(r.total / 60)}分</td><td><b>${sk(Math.round(r.mean * 24))}</b><br>${f1(r.mean)}秒</td><td>${r.median == null ? '–' : `${sk(Math.round(r.median * 24))}<br>${f1(r.median)}秒`}</td><td>${r.sdLog == null ? '–' : r.sdLog.toFixed(3)}</td>
     <td>${pct(r.bins[0] + r.bins[1], r.n)}</td><td>${pct(r.long10share, 1)}</td>`
     + SIZES.filter(x => x[0] !== 'CH').map(([v]) => `<td>${pct(r.size[v] || 0, sz(r))}</td>`).join('')
     + ANGLES.filter(x => x[0]).map(([v]) => `<td>${pct(r.angle[v] || 0, r.n)}</td>`).join('')
     + `<td>${pct(r.bg, r.n)}</td>` + SUBJ.map(([v]) => `<td>${pct(r.subj[v] || 0, r.n)}</td>`).join('')
     + (byWork ? '' : `<td><button type="button" data-open="${r.id}">開く</button></td>`) + '</tr>').join('');
-  $('recTable').innerHTML = rows.length ? `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table><p class="note">サイズの割合は、サイズを入れたカット（途中で変化を除く）の中の割合。アングル・BGオンリー・被写体は全カットの中の割合。</p>` : '';
+  $('recTable').innerHTML = rows.length ? `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table><p class="note">サイズの割合は、サイズを入れたカット（途中で変化を除く）の中の割合。アングル・BGオンリー・被写体は全カットの中の割合。SDlog はカット長（秒）の常用対数の標準偏差で、大きいほど長短の差が大きい。</p>` : '';
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));
 }
 export async function openRecord(id, onShown) {
