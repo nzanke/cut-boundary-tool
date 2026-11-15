@@ -12,11 +12,17 @@ if (!window.crossOriginIsolated && 'serviceWorker' in navigator && location.prot
   }).catch(() => {});
 }
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDPGothic:wght@400;700&display=swap" crossorigin>
 <style>
+/* 字体：英数字は BIZ UDゴシック（等幅で桁がそろう。手元に置いた英数字だけのファイル）、日本語の文は BIZ UDPゴシック */
+@font-face{font-family:"UD英数";src:url(lib/fonts/biz-udgothic-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020-007E,U+00A0-00FF}
+@font-face{font-family:"UD英数";src:url(lib/fonts/biz-udgothic-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap;unicode-range:U+0020-007E,U+00A0-00FF}
 :root{
   --bg:#f3f4f2; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#cfd5d2;
   --sure:#2f8f5b; --ask:#e2a900; --mine:#2a62c9; --same:#8a948f; --focus:#d2462f; --part:#7a3fb0;
-  --ui:"Noto Sans JP","Hiragino Sans",system-ui,sans-serif; --num:"IBM Plex Mono",ui-monospace,monospace;
+  --ui:"UD英数","BIZ UDPGothic","Hiragino Sans",system-ui,sans-serif; --num:"UD英数","BIZ UDGothic",ui-monospace,monospace;
   --tw:120px;
 }
 @media (prefers-color-scheme: dark){:root{
@@ -99,7 +105,7 @@ table.st span{color:var(--muted);font-family:var(--num)}
 .view[data-v="records"]{--cl:#5865f2;--cl2:#9b6cf5;--cs:#ec4f86;--cs2:#f7925a;--ca:#13a8c2;--ca2:#2fc493;--tint:9%;--nmbg:#252a3d;--nmfg:#fff;--nmmu:#b9bfd6}
 @media (prefers-color-scheme:dark){.view[data-v="records"]{--cl:#8a93ff;--cl2:#b49bff;--cs:#ff7aa8;--cs2:#ffb07a;--ca:#4fd0e6;--ca2:#5be0b0;--tint:14%;--nmbg:#0f1220;--nmfg:#fff;--nmmu:#a3a9c2}}
 .rec-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:4px 0 14px}
-.rec-bar h2{font-size:17px;font-weight:600;margin:0 8px 0 0}
+.rec-bar h2{font-size:17px;font-weight:700;margin:0 8px 0 0}
 .seg{display:inline-flex;border-radius:10px;padding:3px;background:color-mix(in srgb,var(--fg) 6%,var(--bg));gap:2px}
 .seg button{border:0;border-radius:8px;background:transparent;padding:5px 12px;font-size:13px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--panel);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
@@ -117,10 +123,10 @@ table.cmp th,table.cmp td{padding:7px 6px;text-align:center;border-bottom:1px so
 table.cmp td{white-space:nowrap;font-family:var(--num);color:var(--fg)}
 table.cmp td small{display:block;color:var(--muted);font-size:10.5px}
 table.cmp .na{color:var(--line)}
-table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:500;color:var(--muted);font-size:11.5px;line-height:1.35;vertical-align:bottom}
+table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:400;color:var(--muted);font-size:11.5px;line-height:1.35;vertical-align:bottom}
 table.cmp thead tr:first-child th{top:0;height:30px}
 table.cmp thead tr:nth-child(2) th{top:30px}
-table.cmp th.grp{text-align:center;font-weight:600;font-size:12.5px;padding:6px 8px 5px;vertical-align:middle;border-bottom:2px solid var(--gc);background:color-mix(in srgb,var(--gc) var(--tint),var(--panel))}
+table.cmp th.grp{text-align:center;font-weight:700;font-size:12.5px;padding:6px 8px 5px;vertical-align:middle;border-bottom:2px solid var(--gc);background:color-mix(in srgb,var(--gc) var(--tint),var(--panel))}
 table.cmp th.grp span{color:var(--gc)}
 table.cmp .g-len{--gc:var(--cl);--gc2:var(--cl2)} table.cmp .g-size{--gc:var(--cs);--gc2:var(--cs2)} table.cmp .g-angle{--gc:var(--ca);--gc2:var(--ca2)}
 table.cmp th[data-k]{white-space:nowrap}
@@ -134,7 +140,7 @@ table.cmp td.on,table.cmp th.on{background:color-mix(in srgb,var(--gc) 5%,var(--
 table.cmp .nm{position:sticky;left:0;z-index:1;background:var(--nmbg);color:var(--nmmu);text-align:left;padding-left:12px;padding-right:10px;min-width:9.5em;max-width:12em;border-bottom-color:rgba(255,255,255,.08)}
 table.cmp thead .nm{z-index:3}
 table.cmp td.nm{white-space:normal}
-table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:500;font-size:13px;line-height:1.4;color:var(--nmfg)}
+table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:400;font-size:13px;line-height:1.45;color:var(--nmfg)}
 table.cmp td.nm .e{display:block;font-family:var(--ui);color:var(--nmmu);font-size:11.5px;line-height:1.4;margin-top:1px}
 table.cmp td.nm button.open{all:unset;cursor:pointer;display:block}
 table.cmp td.nm button.open:hover .w{text-decoration:underline;text-decoration-color:var(--cs);text-underline-offset:3px}
