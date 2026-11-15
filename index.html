@@ -120,7 +120,7 @@ button.ghost{background:transparent}
 .tw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 table.cmp{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
 table.cmp th,table.cmp td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-table.cmp td{white-space:nowrap;font-family:var(--num);color:var(--fg)}
+table.cmp td{white-space:nowrap;font-family:var(--num);color:var(--fg);text-align:right}
 table.cmp td small{display:block;color:var(--muted);font-size:10.5px}
 table.cmp .na{color:var(--line)}
 table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:400;color:var(--muted);font-size:11.5px;line-height:1.35;vertical-align:bottom}
@@ -129,8 +129,8 @@ table.cmp thead tr:nth-child(2) th{top:30px}
 table.cmp th.grp{text-align:center;font-weight:700;font-size:12.5px;padding:6px 8px 5px;vertical-align:middle;border-bottom:2px solid var(--gc);background:color-mix(in srgb,var(--gc) var(--tint),var(--panel))}
 table.cmp th.grp span{color:var(--gc)}
 table.cmp .g-len{--gc:var(--cl);--gc2:var(--cl2)} table.cmp .g-size{--gc:var(--cs);--gc2:var(--cs2)} table.cmp .g-angle{--gc:var(--ca);--gc2:var(--ca2)}
-table.cmp th[data-k]{white-space:nowrap}
-table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:flex-end;gap:2px;text-align:center}
+table.cmp th[data-k]{white-space:nowrap;text-align:right}
+table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:flex-end;gap:2px;text-align:right}
 table.cmp th[data-k] button span{white-space:nowrap;word-break:keep-all}
 table.cmp th[data-k] small{display:block;font-size:10px;opacity:.8}
 table.cmp th[data-k] i{font-style:normal;font-size:11px;color:var(--gc);width:.6em}
@@ -147,7 +147,7 @@ table.cmp td.nm button.open:hover .w{text-decoration:underline;text-decoration-c
 table.cmp td.nm button.open:focus-visible{outline:2px solid var(--cs2);outline-offset:2px;border-radius:3px}
 table.cmp tbody tr:hover td:not(.nm){background:color-mix(in srgb,var(--cl) 6%,var(--panel))}
 table.cmp tbody tr:hover td.nm{background:color-mix(in srgb,#fff 8%,var(--nmbg))}
-table.cmp td.bar{background-image:linear-gradient(90deg,var(--gc),var(--gc2));background-size:calc(var(--w,0%) * .8) 4px;background-repeat:no-repeat;background-position:center top calc(50% + 1.15em)}
+table.cmp td.bar{background-image:linear-gradient(90deg,var(--gc),var(--gc2));background-size:calc(var(--w,0%) * .8) 4px;background-repeat:no-repeat;background-position:right 6px top calc(50% + 1.15em)}
 table.cmp tbody tr:last-child td{border-bottom:0}
 @media (max-width:640px){#recQ{width:100%} #recCount{margin-left:0} .tw{max-height:calc(100vh - 230px)} table.cmp{font-size:11.5px} table.cmp th,table.cmp td{padding:6px 6px} table.cmp .nm{min-width:6.5em;max-width:7.5em;padding-left:8px} table.cmp td.nm .w{font-size:12px} table.cmp td.nm .e{font-size:10.5px}}
 .note{font-size:12px;color:var(--muted)}
