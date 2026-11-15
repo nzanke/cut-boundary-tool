@@ -4,7 +4,10 @@ import * as store from './store.js';
 
 const $ = id => document.getElementById(id);
 export const SIZES = [['XL', '超ロング'], ['L', 'ロング'], ['M', 'ミドル'], ['U', 'アップ'], ['XU', '超アップ'], ['N', '人物なし'], ['CH', '途中で変化']];
-const SCALE = { XL: 1, L: 2, M: 3, U: 4, XU: 5 };  // 人物のサイズの順番（人物なし・途中で変化は入れない）
+const SCALE = { XL: 1, L: 2, M: 3, U: 4, XU: 5 };
+// サイズ版SDlog・寄せ引き指数に使う倍率（どの段の差も2倍、ミドル＝1）
+export const RATIO = { XL: 0.25, L: 0.5, M: 1, U: 2, XU: 4 };
+export function sizeLogOf(o) { if (!o || o.n < 2) return { sdLog: null, index: null }; const m = o.sum / o.n; return { sdLog: Math.sqrt(Math.max(0, (o.sq - o.n * m * m) / (o.n - 1))), index: Math.pow(10, m) * 100 }; }  // 人物のサイズの順番（人物なし・途中で変化は入れない）
 // 前の版の「BGオンリー」「被写体0」は「人物なし」にまとめる（サイズを入れ始めている回だけ）
 export function migrate(rec) {
   if (!rec.cuts.some(c => c.size && c.size !== 'N')) return 0;
@@ -86,6 +89,7 @@ export function stats(rec, list) {
     long10share: tot ? s.filter(x => x >= 10).reduce((a, b) => a + b, 0) / tot : 0,
     size: cnt('size', SIZES), sizeUnset: cuts.filter(c => !c.size).length,
     angle: cnt('angle', ANGLES), trans: sizeTrans(cuts),
+    sizeLog: cuts.reduce((o, c) => { const v = RATIO[c.size]; if (v) { const l = Math.log10(v); o.n++; o.sum += l; o.sq += l * l; } return o; }, { n: 0, sum: 0, sq: 0 }),
   };
 }
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 + '%' : '–';
@@ -208,7 +212,7 @@ export function summaryText(rec) {
 }
 export function indexEntry(rec) {
   const st = stats(rec);
-  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, trans: st.trans };
+  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, trans: st.trans, sizeLog: st.sizeLog };
 }
 export async function saveRecord(blobs, onProgress) {
   const rec = R; rec.updated = new Date().toISOString();

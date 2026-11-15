@@ -1,6 +1,6 @@
 // 過去の記録：一覧・開く・回どうし／作品どうしの比較
 import * as store from './store.js';
-import { SIZES, ANGLES, BINS, show, setSheetUrl, sk, backToWork, logStats, medianOf, indexEntry } from './cuts.js';
+import { SIZES, ANGLES, BINS, show, setSheetUrl, sk, backToWork, logStats, medianOf, indexEntry, sizeLogOf } from './cuts.js';
 
 const $ = id => document.getElementById(id);
 let IDX = [];
@@ -13,8 +13,8 @@ export async function loadList() {
     const t = await store.readText('records/index.json');
     IDX = t ? JSON.parse(t) : [];
     // 古いページで保存された回は一覧に各カットの長さ・SDlog が無いので、記録の本体から計算して補う
-    await Promise.all(IDX.filter(r => r.sdLog == null || !r.lens || !r.trans).map(async r => {
-      try { const rec = JSON.parse(await store.readText(`records/${r.id}/record.json`)); const e = indexEntry(rec); Object.assign(r, { fps: e.fps, lens: e.lens, median: e.median, aslLog: e.aslLog, sdLog: e.sdLog, size: e.size, sizeUnset: e.sizeUnset, trans: e.trans }); } catch (e) { }
+    await Promise.all(IDX.filter(r => r.sdLog == null || !r.lens || !r.trans || !r.sizeLog).map(async r => {
+      try { const rec = JSON.parse(await store.readText(`records/${r.id}/record.json`)); const e = indexEntry(rec); Object.assign(r, { fps: e.fps, lens: e.lens, median: e.median, aslLog: e.aslLog, sdLog: e.sdLog, size: e.size, sizeUnset: e.sizeUnset, trans: e.trans, sizeLog: e.sizeLog }); } catch (e) { }
     }));
     $('recMsg').textContent = IDX.length ? '' : 'まだ記録がありません。「新しい回」で動画を読み、カットを決めて保存すると、ここに並びます。';
   } catch (e) { $('recMsg').textContent = String(e.message || e); IDX = []; }
@@ -24,10 +24,11 @@ function agg(rows) { // 作品ごとにまとめる（カット数で重みづ�
   const by = new Map();
   for (const r of rows) {
     const k = r.work || '（作品名なし）';
-    if (!by.has(k)) by.set(k, { id: '', work: k, ep: '', title: rows.filter(x => (x.work || '（作品名なし）') === k).length + '話', n: 0, total: 0, mean: 0, median: null, secs: [], allLens: true, long10: 0, bins: BINS.map(() => 0), size: {}, sizeUnset: 0, angle: {}, trans: { pairs: 0, chg: 0, jump: 0 } });
+    if (!by.has(k)) by.set(k, { id: '', work: k, ep: '', title: rows.filter(x => (x.work || '（作品名なし）') === k).length + '話', n: 0, total: 0, mean: 0, median: null, secs: [], allLens: true, long10: 0, bins: BINS.map(() => 0), size: {}, sizeUnset: 0, angle: {}, trans: { pairs: 0, chg: 0, jump: 0 }, sizeLog: { n: 0, sum: 0, sq: 0 } });
     const a = by.get(k);
     a.n += r.n; a.total += r.total; a.long10 += r.long10share * r.total; a.sizeUnset += r.sizeUnset;
     if (r.trans) for (const k2 of ['pairs', 'chg', 'jump']) a.trans[k2] += r.trans[k2];
+    if (r.sizeLog) for (const k2 of ['n', 'sum', 'sq']) a.sizeLog[k2] += r.sizeLog[k2];
     if (r.lens && r.fps) a.secs.push(...r.lens.map(f => f / r.fps)); else a.allLens = false;
     r.bins.forEach((v, i) => a.bins[i] += v);
     for (const o of ['size', 'angle']) for (const k2 in r[o]) a[o][k2] = (a[o][k2] || 0) + r[o][k2];
@@ -52,12 +53,13 @@ const COLS = [
   { g: 'len', k: 'sdLog', t: 'SDlog', tip: 'カット長の常用対数の標準偏差。大きいほど長短の差が大きい', v: r => r.sdLog, f: v => v == null ? '<span class="na">–</span>' : v.toFixed(3) },
   { g: 'len', k: 'short', t: '2秒未満<small>%</small>', tip: '2秒未満のカットの割合', v: r => P(r.bins[0] + r.bins[1], r.n), f: fmtPct, bar: 1 },
   { g: 'len', k: 'long10', t: '10秒以上<small>%</small>', tip: '10秒以上のカットが尺（時間）に占める割合', v: r => r.long10share, f: fmtPct, bar: 1 },
-  { g: 'size', k: 'sizeIn', t: 'サイズ<br>入力済み', tip: 'サイズを入れたカットの割合', v: r => P(r.n - (r.sizeUnset || 0), r.n), f: fmtPct },
-  ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t, v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
-  { g: 'size', k: 'chg', t: 'サイズが<br>変わる', tip: '隣りあう人物のカットで、サイズが変わる割合', v: r => r.trans ? P(r.trans.chg, r.trans.pairs) : null, f: fmtPct, bar: 1 },
-  { g: 'size', k: 'jump', t: '2段以上<br>変わる', tip: '隣りあう人物のカットで、サイズが2段以上変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
+  { g: 'size', k: 'sizeIn', t: 'サイズ<br>入力済み<small>%</small>', tip: 'サイズを入れたカットの割合', v: r => P(r.n - (r.sizeUnset || 0), r.n), f: fmtPct },
+  ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t: t + '<small>%</small>', v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
+  { g: 'size', k: 'sLog', t: 'サイズ版<br>SDlog', tip: 'どの段の差も2倍として（超ロング0.25・ロング0.5・ミドル1・アップ2・超アップ4）、その常用対数の標準偏差。大きいほど引きから寄りまで幅広く使う', v: r => sizeLogOf(r.sizeLog).sdLog, f: v => v == null ? '<span class="na">–</span>' : v.toFixed(3), bar: 1 },
+  { g: 'size', k: 'sIdx', t: '寄せ引き<br>指数', tip: '人物が平均してミドルの何%の大きさで写るか（ミドル＝100、アップばかりなら200、ロングばかりなら50）', v: r => sizeLogOf(r.sizeLog).index, f: v => v == null ? '<span class="na">–</span>' : Math.round(v), bar: 1 },
+  { g: 'size', k: 'jump', t: '2段変化<small>%</small>', tip: '隣りあう人物のカットで、サイズが2段以上変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
 ];
-const GROUPS = [['len', '長さ'], ['size', 'サイズ（%）']];
+const GROUPS = [['len', '長さ'], ['size', 'サイズ']];
 function renderTable() {
   const byWork = UI.byWork = $('byWork').checked; saveUI();
   const q = UI.q.trim().toLowerCase();
@@ -81,7 +83,7 @@ function renderTable() {
       : `<td class="nm"><button type="button" class="open" data-open="${r.id}" title="この回を開く"><span class="w">${hw(r.work)}</span><span class="e">${hw(r.ep)}${r.title ? '　' + hw(r.title) : ''}</span></button></td>`}`
     + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}${UI.sort && UI.sort.k === c.k ? ' on' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + (byWork ? '' : `<td class="op"><button type="button" data-open="${r.id}">開く</button></td>`) + '</tr>').join('');
   $('recTable').innerHTML = `<div class="tw"><table class="cmp"><thead>${h1}${h2}</thead><tbody>${body}</tbody></table></div>
-    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開きます。'}数字は％。サイズの割合は、サイズを入れたカット（途中で変化を除く）の中での割合です。「サイズが変わる」「2段以上変わる」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中での割合。数字の下の線は、表示中でいちばん大きい値に対する長さです。</p>`;
+    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開きます。'}「%」の付いた列は割合。サイズの割合は、サイズを入れたカット（途中で変化を除く）の中での割合です。サイズ版SDlog と寄せ引き指数は、どの段の差も2倍として（超ロング0.25・ロング0.5・ミドル1・アップ2・超アップ4）計算。寄せ引き指数はミドル＝100で、大きいほど寄りが多い。「2段変化」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎのうち、サイズが2段以上変わる割合。数字の下の線は、表示中でいちばん大きい値に対する長さです。</p>`;
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));
   $('recTable').querySelectorAll('th[data-k] button').forEach(b => b.onclick = () => {
     const k = b.parentElement.dataset.k;
