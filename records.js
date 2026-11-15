@@ -74,12 +74,12 @@ function renderTable() {
   if ($('recMode')) $('recMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.m === 'work') === byWork));
   if (!rows.length) { $('recTable').innerHTML = IDX.length ? '<p class="note">当てはまる記録がありません</p>' : ''; return; }
   const gs = GROUPS.filter(([g]) => UI.groups[g]);
-  const h1 = `<tr><th class="nm" rowspan="2">${byWork ? '作品' : '回'}</th>` + gs.map(([g, t]) => `<th class="grp g-${g}" colspan="${cols.filter(c => c.g === g).length}"><span>${t}</span></th>`).join('') + '</tr>';
+  const h1 = `<tr><th class="nm" rowspan="2">${byWork ? '作品' : '回'}</th>` + gs.map(([g, t]) => `<th class="grp g-${g}" colspan="${cols.filter(c => c.g === g).length}"><span>${t}</span></th>`).join('') + (byWork ? '' : '<th class="op" rowspan="2">開く</th>') + '</tr>';
   const h2 = '<tr>' + cols.map(c => { const on = UI.sort && UI.sort.k === c.k; return `<th class="g-${c.g}${on ? ' on' : ''}" data-k="${c.k}" title="${c.tip || ''}" aria-sort="${on ? (UI.sort.d > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button"><span>${c.t}</span><i aria-hidden="true">${on ? (UI.sort.d > 0 ? '↑' : '↓') : ''}</i></button></th>`; }).join('') + '</tr>';
   const body = rows.map(r => `<tr>${byWork
       ? `<td class="nm"><span class="w">${hw(r.work)}</span><span class="e">${hw(r.title)}</span></td>`
       : `<td class="nm"><button type="button" class="open" data-open="${r.id}" title="この回を開く"><span class="w">${hw(r.work)}</span><span class="e">${hw(r.ep)}${r.title ? '　' + hw(r.title) : ''}</span></button></td>`}`
-    + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}${UI.sort && UI.sort.k === c.k ? ' on' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + '</tr>').join('');
+    + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}${UI.sort && UI.sort.k === c.k ? ' on' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + (byWork ? '' : `<td class="op"><button type="button" data-open="${r.id}">開く</button></td>`) + '</tr>').join('');
   $('recTable').innerHTML = `<div class="tw"><table class="cmp"><thead>${h1}${h2}</thead><tbody>${body}</tbody></table></div>
     <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開きます。'}数字は％。サイズの割合は、サイズを入れたカット（途中で変化を除く）の中での割合です。「サイズが変わる」「2段以上変わる」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中での割合。数字の下の線は、表示中でいちばん大きい値に対する長さです。</p>`;
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));

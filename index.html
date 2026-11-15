@@ -149,6 +149,9 @@ table.cmp tbody tr:hover td:not(.nm){background:color-mix(in srgb,var(--cl) 6%,v
 table.cmp tbody tr:hover td.nm{background:color-mix(in srgb,#fff 8%,var(--nmbg))}
 table.cmp td.bar{background-image:linear-gradient(90deg,var(--gc),var(--gc2));background-size:calc(var(--w,0%) * .8) 4px;background-repeat:no-repeat;background-position:right 6px top calc(50% + 1.15em)}
 table.cmp tbody tr:last-child td{border-bottom:0}
+table.cmp th.op,table.cmp td.op{text-align:center;padding-left:10px;padding-right:10px}
+table.cmp td.op button{font-size:12px;padding:4px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+table.cmp td.op button:hover{border-color:var(--cl);color:var(--cl)}
 @media (max-width:640px){#recQ{width:100%} #recCount{margin-left:0} .tw{max-height:calc(100vh - 230px)} table.cmp{font-size:11.5px} table.cmp th,table.cmp td{padding:6px 6px} table.cmp .nm{min-width:6.5em;max-width:7.5em;padding-left:8px} table.cmp td.nm .w{font-size:12px} table.cmp td.nm .e{font-size:10.5px}}
 .note{font-size:12px;color:var(--muted)}
 textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
