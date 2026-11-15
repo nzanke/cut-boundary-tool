@@ -96,45 +96,54 @@ table.st th{text-align:left;background:var(--bg)}
 table.st b{font-size:14px;font-family:var(--num)}
 table.st span{color:var(--muted);font-family:var(--num)}
 /* 過去の記録 */
-.rec-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:4px 0 12px}
-.rec-bar h2{font-size:17px;margin:0 6px 0 0;letter-spacing:.02em}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--panel)}
+.rec-bar{--c1:#7c3aed;--c2:#ec4899;--c3:#06b6d4}
+.view[data-v="records"]{--gl1:#6d5dfc;--gl2:#a855f7;--gs1:#f43f5e;--gs2:#fb923c;--ga1:#06b6d4;--ga2:#10b981}
+.rec-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:4px 0 12px}
+.rec-bar h2{font-size:18px;margin:0 6px 0 0;letter-spacing:.02em;background:linear-gradient(90deg,var(--gl1),var(--gs1) 55%,var(--gs2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel);gap:2px}
 .seg button{border:0;border-radius:999px;background:transparent;padding:5px 12px;font-size:13px;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
-#recQ{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);width:15em}
+#recMode button[aria-pressed="true"]{background:linear-gradient(135deg,var(--gl1),var(--gl2));color:#fff}
+#recGroups button[aria-pressed="true"][data-g="len"]{background:linear-gradient(135deg,var(--gl1),var(--gl2));color:#fff}
+#recGroups button[aria-pressed="true"][data-g="size"]{background:linear-gradient(135deg,var(--gs1),var(--gs2));color:#fff}
+#recGroups button[aria-pressed="true"][data-g="angle"]{background:linear-gradient(135deg,var(--ga1),var(--ga2));color:#fff}
+#recQ{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);width:13em}
+#recQ:focus{outline:2px solid var(--gl2);outline-offset:1px}
 button.ghost{background:transparent}
 #recCount{margin-left:auto}
-.tw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px -12px rgba(0,0,0,.12)}
-table.cmp{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
-table.cmp th,table.cmp td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.04),0 10px 30px -14px rgba(109,93,252,.35)}
+table.cmp{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+table.cmp th,table.cmp td{padding:6px 7px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 table.cmp td{font-family:var(--num)}
-table.cmp td small{color:var(--muted);font-size:10.5px;margin-left:1px}
-table.cmp td b{font-weight:600}
+table.cmp td small{color:var(--muted);font-size:10px;margin-left:1px}
+table.cmp td b{font-weight:700}
 table.cmp td small:not(:first-child){display:block}
-table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:600;color:var(--muted);font-size:11.5px}
-table.cmp thead tr:first-child th{top:0;height:30px}
-table.cmp thead tr:nth-child(2) th{top:30px}
-table.cmp th.grp{text-align:center;color:var(--fg);font-size:12px;letter-spacing:.08em;border-bottom:2px solid currentColor}
-table.cmp th.grp.g-len{color:var(--mine)} table.cmp th.grp.g-size{color:var(--sure)} table.cmp th.grp.g-angle{color:var(--part)}
-table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
-table.cmp th[data-k] i{font-style:normal;font-size:9px;opacity:.35}
-table.cmp th.on{color:var(--fg)} table.cmp th.on i{opacity:1}
-table.cmp th[data-k]:hover{color:var(--fg)}
-table.cmp .nm{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;white-space:normal;min-width:11em;max-width:16em;box-shadow:1px 0 0 var(--line)}
-table.cmp thead .nm{z-index:3;vertical-align:bottom}
-table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:600;font-size:13px;line-height:1.3}
-table.cmp td.nm .e{display:block;font-family:var(--ui);color:var(--muted);font-size:11.5px;margin-top:2px}
+table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:700;color:var(--muted);font-size:11.5px}
+table.cmp thead tr:first-child th{top:0;height:28px}
+table.cmp thead tr:nth-child(2) th{top:28px}
+table.cmp th.grp{text-align:center;color:#fff;font-size:11.5px;letter-spacing:.12em}
+table.cmp th.grp.g-len{background:linear-gradient(90deg,var(--gl1),var(--gl2))}
+table.cmp th.grp.g-size{background:linear-gradient(90deg,var(--gs1),var(--gs2))}
+table.cmp th.grp.g-angle{background:linear-gradient(90deg,var(--ga1),var(--ga2))}
+table.cmp thead tr:nth-child(2) th.g-len{color:var(--gl1)} table.cmp thead tr:nth-child(2) th.g-size{color:var(--gs1)} table.cmp thead tr:nth-child(2) th.g-angle{color:var(--ga1)}
+table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:2px}
+table.cmp th[data-k] i{font-style:normal;font-size:8px;opacity:.35}
+table.cmp th.on i{opacity:1}
+table.cmp th.on{text-decoration:underline;text-underline-offset:3px}
+table.cmp .nm{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;white-space:normal;min-width:8.5em;max-width:11em;box-shadow:1px 0 0 var(--line)}
+table.cmp thead .nm{z-index:3;vertical-align:bottom;color:var(--muted)}
+table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:700;font-size:12.5px;line-height:1.3}
+table.cmp td.nm .e{display:block;font-family:var(--ui);color:var(--muted);font-size:11px;margin-top:2px}
 table.cmp td.nm button.open{all:unset;cursor:pointer;display:block}
-table.cmp td.nm button.open:hover .w{color:var(--mine);text-decoration:underline}
+table.cmp td.nm button.open:hover .w{color:var(--gl1);text-decoration:underline}
 table.cmp td.nm button.open:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-table.cmp tbody tr:hover td{background:color-mix(in srgb,var(--mine) 6%,var(--panel))}
-table.cmp td.bar{background-image:linear-gradient(90deg,var(--bc) var(--w,0%),transparent var(--w,0%));background-size:100% 4px;background-repeat:no-repeat;background-position:0 calc(100% - 3px)}
-table.cmp td.g-len{--bc:color-mix(in srgb,var(--mine) 45%,transparent)}
-table.cmp td.g-size{--bc:color-mix(in srgb,var(--sure) 45%,transparent)}
-table.cmp td.g-angle{--bc:color-mix(in srgb,var(--part) 45%,transparent)}
-table.cmp td.g-size:first-of-type,table.cmp th.g-size:not(.grp){}
+table.cmp tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--gl1) 3%,var(--panel))}
+table.cmp tbody tr:hover td{background:color-mix(in srgb,var(--gs1) 7%,var(--panel))}
+table.cmp td.bar{background-image:linear-gradient(90deg,var(--b1),var(--b2));background-size:var(--w,0%) 4px;background-repeat:no-repeat;background-position:0 calc(100% - 3px)}
+table.cmp td.g-len{--b1:var(--gl1);--b2:var(--gl2)}
+table.cmp td.g-size{--b1:var(--gs1);--b2:var(--gs2)}
+table.cmp td.g-angle{--b1:var(--ga1);--b2:var(--ga2)}
 table.cmp tbody tr:last-child td{border-bottom:0}
-@media (max-width:640px){#recQ{width:100%} #recCount{margin-left:0} .tw{max-height:calc(100vh - 230px)} table.cmp{font-size:11.5px} table.cmp th,table.cmp td{padding:6px 7px} table.cmp .nm{min-width:7.5em;max-width:9em} table.cmp td.nm .w{font-size:12px} table.cmp td.nm .e{font-size:10.5px}}
+@media (max-width:640px){#recQ{width:100%} #recCount{margin-left:0} .tw{max-height:calc(100vh - 230px)} table.cmp{font-size:11px} table.cmp th,table.cmp td{padding:5px 5px} table.cmp .nm{min-width:6.5em;max-width:7.5em} table.cmp td.nm .w{font-size:11.5px} table.cmp td.nm .e{font-size:10px}}
 .note{font-size:12px;color:var(--muted)}
 textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
 .form{display:grid;gap:10px;max-width:40em;font-size:14px}

@@ -41,20 +41,21 @@ UI.sort = UI.sort || null; UI.groups = UI.groups || { len: true, size: true, ang
 const saveUI = () => { try { localStorage.setItem('cbt-rec-ui', JSON.stringify(UI)); } catch (e) { } };
 const P = (a, b) => b ? a / b : null;                         // 割合（0〜1）。分母が0なら空
 const szBase = r => SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + ((r.size || {})[v] || 0), 0);
-const fmtPct = v => v == null ? '–' : (Math.round(v * 1000) / 10).toFixed(1) + '<small>%</small>';
+const fmtPct = v => v == null ? '–' : Math.round(v * 100) + '<small>%</small>';
 const fmtT = v => v == null ? '–' : `<b>${sk(Math.round(v * 24))}</b><small>${f1(v)}秒</small>`;
+const SHORT = { XL: '超L', L: 'L', M: 'M', U: 'UP', XU: '超UP', N: '人なし' };
 const COLS = [
-  { g: 'len', k: 'n', t: 'カット', v: r => r.n, f: v => `<b>${v}</b>` },
+  { g: 'len', k: 'n', t: 'C', tip: 'カット数', v: r => r.n, f: v => `<b>${v}</b>` },
   { g: 'len', k: 'total', t: '尺', v: r => r.total, f: v => `${Math.floor(v / 60)}<small>分</small>` },
   { g: 'len', k: 'mean', t: '平均', v: r => r.mean, f: fmtT },
-  { g: 'len', k: 'median', t: '中央値', v: r => r.median, f: fmtT },
+  { g: 'len', k: 'median', t: '中央', tip: '中央値', v: r => r.median, f: fmtT },
   { g: 'len', k: 'sdLog', t: 'SDlog', tip: 'カット長の常用対数の標準偏差。大きいほど長短の差が大きい', v: r => r.sdLog, f: v => v == null ? '–' : v.toFixed(3) },
-  { g: 'len', k: 'short', t: '2秒未満', v: r => P(r.bins[0] + r.bins[1], r.n), f: fmtPct, bar: 1 },
-  { g: 'len', k: 'long10', t: '10秒以上の尺', tip: '10秒以上のカットが尺に占める割合', v: r => r.long10share, f: fmtPct, bar: 1 },
-  { g: 'size', k: 'sizeIn', t: '入力済み', tip: 'サイズを入れたカットの割合', v: r => P(r.n - (r.sizeUnset || 0), r.n), f: fmtPct },
-  ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t, v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
-  { g: 'size', k: 'chg', t: 'サイズが変わる', tip: '隣りあう人物のカットで、サイズが変わる割合', v: r => r.trans ? P(r.trans.chg, r.trans.pairs) : null, f: fmtPct, bar: 1 },
-  { g: 'size', k: 'jump', t: '大きく飛ぶ', tip: '隣りあう人物のカットで、2段以上サイズが変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
+  { g: 'len', k: 'short', t: '2秒↓', tip: '2秒未満のカットの割合', v: r => P(r.bins[0] + r.bins[1], r.n), f: fmtPct, bar: 1 },
+  { g: 'len', k: 'long10', t: '10秒↑', tip: '10秒以上のカットが尺に占める割合', v: r => r.long10share, f: fmtPct, bar: 1 },
+  { g: 'size', k: 'sizeIn', t: '入力', tip: 'サイズを入れたカットの割合', v: r => P(r.n - (r.sizeUnset || 0), r.n), f: fmtPct },
+  ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t: SHORT[c] || t, tip: t, v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
+  { g: 'size', k: 'chg', t: '変化', tip: '隣りあう人物のカットで、サイズが変わる割合', v: r => r.trans ? P(r.trans.chg, r.trans.pairs) : null, f: fmtPct, bar: 1 },
+  { g: 'size', k: 'jump', t: '2段↑', tip: '隣りあう人物のカットで、2段以上サイズが変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
   ...ANGLES.filter(x => x[0]).map(([c, t]) => ({ g: 'angle', k: 'a' + c, t, v: r => P((r.angle || {})[c] || 0, r.n), f: fmtPct, bar: 1 })),
 ];
 const GROUPS = [['len', '長さ'], ['size', 'サイズ'], ['angle', 'アングル']];
@@ -80,7 +81,7 @@ function renderTable() {
       : `<td class="nm"><button type="button" class="open" data-open="${r.id}" title="この回を開く"><span class="w">${r.work || ''}</span><span class="e">${r.ep || ''}${r.title ? '　' + r.title : ''}</span></button></td>`}`
     + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + '</tr>').join('');
   $('recTable').innerHTML = `<div class="tw"><table class="cmp"><thead>${h1}${h2}</thead><tbody>${body}</tbody></table></div>
-    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開く。'}サイズの割合は、サイズを入れたカット（途中で変化を除く）の中の割合。アングルは全カットの中の割合。「サイズが変わる」「大きく飛ぶ（2段以上）」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中の割合。帯の長さは、表示中の中でいちばん大きい値との比。</p>`;
+    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開く。'}C＝カット数、中央＝中央値、2秒↓＝2秒未満のカットの割合、10秒↑＝10秒以上のカットが尺に占める割合。入力＝サイズを入れたカットの割合。超L・L・M・UP・超UP・人なし＝超ロング・ロング・ミドル・アップ・超アップ・人物なしの割合（サイズを入れたカット、途中で変化を除く）。変化・2段↑＝隣りあう人物のカットでサイズが変わる割合・2段以上変わる割合。アングルは全カットの中の割合。見出しに指を置くと正式な名前が出ます。帯の長さは、表示中でいちばん大きい値との比。</p>`;
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));
   $('recTable').querySelectorAll('th[data-k] button').forEach(b => b.onclick = () => {
     const k = b.parentElement.dataset.k;
