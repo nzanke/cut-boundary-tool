@@ -96,8 +96,8 @@ table.st th{text-align:left;background:var(--bg)}
 table.st b{font-size:14px;font-family:var(--num)}
 table.st span{color:var(--muted);font-family:var(--num)}
 /* 過去の記録：色は3系統（長さ＝藍、サイズ＝薔薇、アングル＝青磁）。彩度を抑えた中間の明るさで、帯と見出しの線だけに使う */
-.view[data-v="records"]{--cl:#5d6bb3;--cs:#c26a7f;--ca:#3e9188;--tint:7%}
-@media (prefers-color-scheme:dark){.view[data-v="records"]{--cl:#9aa6e6;--cs:#e59aac;--ca:#7cc8bf;--tint:12%}}
+.view[data-v="records"]{--cl:#5865f2;--cl2:#9b6cf5;--cs:#ec4f86;--cs2:#f7925a;--ca:#13a8c2;--ca2:#2fc493;--tint:9%;--nmbg:#252a3d;--nmfg:#fff;--nmmu:#b9bfd6}
+@media (prefers-color-scheme:dark){.view[data-v="records"]{--cl:#8a93ff;--cl2:#b49bff;--cs:#ff7aa8;--cs2:#ffb07a;--ca:#4fd0e6;--ca2:#5be0b0;--tint:14%;--nmbg:#0f1220;--nmfg:#fff;--nmmu:#a3a9c2}}
 .rec-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:4px 0 14px}
 .rec-bar h2{font-size:17px;font-weight:600;margin:0 8px 0 0}
 .seg{display:inline-flex;border-radius:10px;padding:3px;background:color-mix(in srgb,var(--fg) 6%,var(--bg));gap:2px}
@@ -113,35 +113,35 @@ button.ghost{background:transparent}
 #recCount{margin-left:auto}
 .tw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 table.cmp{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
-table.cmp th,table.cmp td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+table.cmp th,table.cmp td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 table.cmp td{white-space:nowrap;font-family:var(--num);color:var(--fg)}
 table.cmp td small{display:block;color:var(--muted);font-size:10.5px}
 table.cmp .na{color:var(--line)}
 table.cmp thead th{position:sticky;background:var(--panel);z-index:2;font-weight:500;color:var(--muted);font-size:11.5px;line-height:1.35;vertical-align:bottom}
 table.cmp thead tr:first-child th{top:0;height:30px}
 table.cmp thead tr:nth-child(2) th{top:30px}
-table.cmp th.grp{text-align:left;font-weight:600;font-size:12.5px;padding:6px 8px 5px;vertical-align:middle;border-bottom:2px solid var(--gc);background:color-mix(in srgb,var(--gc) var(--tint),var(--panel))}
-table.cmp th.grp span{color:var(--gc);filter:brightness(.85)}
-table.cmp .g-len{--gc:var(--cl)} table.cmp .g-size{--gc:var(--cs)} table.cmp .g-angle{--gc:var(--ca)}
+table.cmp th.grp{text-align:center;font-weight:600;font-size:12.5px;padding:6px 8px 5px;vertical-align:middle;border-bottom:2px solid var(--gc);background:color-mix(in srgb,var(--gc) var(--tint),var(--panel))}
+table.cmp th.grp span{color:var(--gc)}
+table.cmp .g-len{--gc:var(--cl);--gc2:var(--cl2)} table.cmp .g-size{--gc:var(--cs);--gc2:var(--cs2)} table.cmp .g-angle{--gc:var(--ca);--gc2:var(--ca2)}
 table.cmp th[data-k]{white-space:nowrap}
-table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:flex-end;gap:2px;text-align:right}
+table.cmp th[data-k] button{all:unset;cursor:pointer;display:inline-flex;align-items:flex-end;gap:2px;text-align:center}
 table.cmp th[data-k] button span{white-space:nowrap;word-break:keep-all}
 table.cmp th[data-k] small{display:block;font-size:10px;opacity:.8}
 table.cmp th[data-k] i{font-style:normal;font-size:11px;color:var(--gc);width:.6em}
 table.cmp th[data-k]:hover,table.cmp th.on{color:var(--fg)}
 table.cmp th[data-k] button:focus-visible{outline:2px solid var(--gc);outline-offset:2px;border-radius:3px}
 table.cmp td.on,table.cmp th.on{background:color-mix(in srgb,var(--gc) 5%,var(--panel))}
-table.cmp .nm{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;padding-left:12px;min-width:9.5em;max-width:12em;box-shadow:1px 0 0 var(--line)}
+table.cmp .nm{position:sticky;left:0;z-index:1;background:var(--nmbg);color:var(--nmmu);text-align:left;padding-left:12px;padding-right:10px;min-width:9.5em;max-width:12em;border-bottom-color:rgba(255,255,255,.08)}
 table.cmp thead .nm{z-index:3}
 table.cmp td.nm{white-space:normal}
-table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:500;font-size:13px;line-height:1.4;color:var(--fg)}
-table.cmp td.nm .e{display:block;font-family:var(--ui);color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:1px}
+table.cmp td.nm .w{display:block;font-family:var(--ui);font-weight:500;font-size:13px;line-height:1.4;color:var(--nmfg)}
+table.cmp td.nm .e{display:block;font-family:var(--ui);color:var(--nmmu);font-size:11.5px;line-height:1.4;margin-top:1px}
 table.cmp td.nm button.open{all:unset;cursor:pointer;display:block}
-table.cmp td.nm button.open:hover .w{color:var(--cl);text-decoration:underline;text-underline-offset:3px}
-table.cmp td.nm button.open:focus-visible{outline:2px solid var(--cl);outline-offset:2px;border-radius:3px}
-table.cmp tbody tr:hover td{background:color-mix(in srgb,var(--cl) 5%,var(--panel))}
-table.cmp td.bar{background-image:linear-gradient(color-mix(in srgb,var(--gc) 65%,transparent),color-mix(in srgb,var(--gc) 65%,transparent));background-size:var(--w,0%) 3px;background-repeat:no-repeat;background-position:right 6px top calc(50% + 1.2em)}
-table.cmp td.bar{background-size:calc(var(--w,0%) * .8) 3px}
+table.cmp td.nm button.open:hover .w{text-decoration:underline;text-decoration-color:var(--cs);text-underline-offset:3px}
+table.cmp td.nm button.open:focus-visible{outline:2px solid var(--cs2);outline-offset:2px;border-radius:3px}
+table.cmp tbody tr:hover td:not(.nm){background:color-mix(in srgb,var(--cl) 6%,var(--panel))}
+table.cmp tbody tr:hover td.nm{background:color-mix(in srgb,#fff 8%,var(--nmbg))}
+table.cmp td.bar{background-image:linear-gradient(90deg,var(--gc),var(--gc2));background-size:calc(var(--w,0%) * .8) 4px;background-repeat:no-repeat;background-position:center top calc(50% + 1.15em)}
 table.cmp tbody tr:last-child td{border-bottom:0}
 @media (max-width:640px){#recQ{width:100%} #recCount{margin-left:0} .tw{max-height:calc(100vh - 230px)} table.cmp{font-size:11.5px} table.cmp th,table.cmp td{padding:6px 6px} table.cmp .nm{min-width:6.5em;max-width:7.5em;padding-left:8px} table.cmp td.nm .w{font-size:12px} table.cmp td.nm .e{font-size:10.5px}}
 .note{font-size:12px;color:var(--muted)}
