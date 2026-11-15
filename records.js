@@ -68,9 +68,9 @@ function renderTable() {
   if (sc) rows.sort((a, b) => { const x = sc.v(a), y = sc.v(b); if (x == null) return 1; if (y == null) return -1; return (x - y) * UI.sort.d; });
   else rows.sort((a, b) => (a.work || '').localeCompare(b.work || '', 'ja') || String(a.ep || '').localeCompare(String(b.ep || ''), 'ja', { numeric: true }));
   const max = Object.fromEntries(cols.filter(c => c.bar).map(c => [c.k, Math.max(0, ...rows.map(r => c.v(r) || 0))]));
-  $('recCount').textContent = `${rows.length} ${byWork ? '作品' : '回'}`;
-  $('recGroups').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', !!UI.groups[b.dataset.g]));
-  $('recMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.m === 'work') === byWork));
+  if ($('recCount')) $('recCount').textContent = `${rows.length} ${byWork ? '作品' : '回'}`;
+  if ($('recGroups')) $('recGroups').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', !!UI.groups[b.dataset.g]));
+  if ($('recMode')) $('recMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.m === 'work') === byWork));
   if (!rows.length) { $('recTable').innerHTML = IDX.length ? '<p class="note">当てはまる記録がありません</p>' : ''; return; }
   const gs = GROUPS.filter(([g]) => UI.groups[g]);
   const h1 = `<tr><th class="nm" rowspan="2">${byWork ? '作品' : '回'}</th>` + gs.map(([g, t]) => `<th class="grp g-${g}" colspan="${cols.filter(c => c.g === g).length}">${t}</th>`).join('') + '</tr>';
@@ -105,7 +105,8 @@ export async function openRecord(id, onShown) {
 export function init() {
   $('backWork').onclick = () => { backToWork(); window.scrollTo(0, 0); };
   $('byWork').checked = !!UI.byWork; $('byWork').onchange = renderTable; $('recReload').onclick = loadList;
-  $('recMode').querySelectorAll('button').forEach(b => b.onclick = () => { $('byWork').checked = b.dataset.m === 'work'; renderTable(); });
-  $('recGroups').querySelectorAll('button').forEach(b => b.onclick = () => { UI.groups[b.dataset.g] = !UI.groups[b.dataset.g]; if (!Object.values(UI.groups).some(Boolean)) UI.groups[b.dataset.g] = true; saveUI(); renderTable(); });
-  $('recQ').value = UI.q; $('recQ').oninput = () => { UI.q = $('recQ').value; saveUI(); renderTable(); };
+  // 古いページ（キャッシュ）と混ざっても他のボタンが止まらないよう、無い要素は飛ばす
+  if ($('recMode')) $('recMode').querySelectorAll('button').forEach(b => b.onclick = () => { $('byWork').checked = b.dataset.m === 'work'; renderTable(); });
+  if ($('recGroups')) $('recGroups').querySelectorAll('button').forEach(b => b.onclick = () => { UI.groups[b.dataset.g] = !UI.groups[b.dataset.g]; if (!Object.values(UI.groups).some(Boolean)) UI.groups[b.dataset.g] = true; saveUI(); renderTable(); });
+  if ($('recQ')) { $('recQ').value = UI.q; $('recQ').oninput = () => { UI.q = $('recQ').value; saveUI(); renderTable(); }; }
 }
