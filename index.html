@@ -147,7 +147,7 @@ textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;pa
       <li>「動画を選ぶ」で動画（MKV・MP4・WebM）を選び、「回のID」（例：madoka-02）を入れる。</li>
       <li>機械が全部のコマを読み、境目の候補を出す（1話で10〜30分ほど。途中でこのタブを閉じない）。一度読んだ動画は、次に同じ動画を選べばすぐに開く。</li>
       <li>コマの帯で、黄の所を「境目」か「同じカット」に決め、見落としを足す。境目の行の選択肢で、アバン・OP・Aパートなどのパートの頭を選ぶ。</li>
-      <li>「境目を確定してカットへ」を押す。全カットのショット長が出るので、カードごとにサイズ・アングル・BGオンリー・被写体の数を選ぶ。集計と絞り込み（超アップだけ、10秒以上だけ など）はその場で出る。</li>
+      <li>「境目を確定してカットへ」を押す。全カットのショット長が出るので、カードごとにサイズ（人物が映っていなければ「人物なし」）・アングルを選ぶ。集計と絞り込み（超アップだけ、10秒以上だけ など）はその場で出る。</li>
       <li>「記録に保存」で、数字・カットの画像・メモを非公開の記録用リポジトリに保存する（最初に「設定」で鍵を入れる）。「過去の記録」で回どうし・作品どうしを比べられる。</li>
     </ol>
     <p>Claude に演出の分析を頼むときは、境目を決めたあと「Claude 向けに書き出す」でできるファイル（境目_回のID.json）を渡す。</p>
@@ -167,8 +167,6 @@ textarea{width:100%;max-width:60em;min-height:5em;font:inherit;font-size:13px;pa
    <div class="filters">
     <div class="grp">サイズ <span id="fSize"></span></div>
     <div class="grp">アングル <span id="fAngle"></span></div>
-    <div class="grp">被写体 <span id="fSubj"></span></div>
-    <div class="grp"><select id="fBg"><option value="all">BGオンリーも含む</option><option value="bg">BGオンリーだけ</option><option value="nobg">BGオンリーを除く</option></select></div>
     <div class="grp">尺 <input id="fMin" type="text" inputmode="decimal" placeholder="下限" title="秒（3、2.5）か秒＋コマ（1+12）">〜<input id="fMax" type="text" inputmode="decimal" placeholder="上限" title="秒（3、2.5）か秒＋コマ（1+12）"><small class="note">秒か 1+12</small></div>
     <div class="grp"><select id="fPart"></select></div>
     <button id="fClear" type="button">絞り込みを外す</button>

@@ -1,17 +1,32 @@
-// カットの一覧：ショット長は自動、サイズ・アングル・BGオンリー・被写体の数を選ぶ。集計・絞り込み・記録の保存。
+// カットの一覧：ショット長は自動、サイズ（人物なしを含む）・アングルを選ぶ。集計・絞り込み・記録の保存。
 import { decodeAll } from './video.js';
 import * as store from './store.js';
 
 const $ = id => document.getElementById(id);
-export const SIZES = [['XL', '超ロング'], ['L', 'ロング'], ['M', 'ミドル'], ['U', 'アップ'], ['XU', '超アップ'], ['CH', '途中で変化']];
+export const SIZES = [['XL', '超ロング'], ['L', 'ロング'], ['M', 'ミドル'], ['U', 'アップ'], ['XU', '超アップ'], ['N', '人物なし'], ['CH', '途中で変化']];
+const SCALE = { XL: 1, L: 2, M: 3, U: 4, XU: 5 };  // 人物のサイズの順番（人物なし・途中で変化は入れない）
+// 前の版の「BGオンリー」「被写体0」は「人物なし」にまとめる（サイズを入れ始めている回だけ）
+export function migrate(rec) {
+  if (!rec.cuts.some(c => c.size && c.size !== 'N')) return 0;
+  let k = 0; for (const c of rec.cuts) { if ((c.bg || c.subj === '0') && c.size !== 'N') { c.size = 'N'; k++; } delete c.bg; delete c.subj; }
+  return k;
+}
+// 隣どうしのカット（両方に人物のサイズがあるもの）で、サイズが変わる割合・2段以上跳ぶ割合
+export function sizeTrans(cuts) {
+  let pairs = 0, chg = 0, jump = 0;
+  for (let i = 1; i < cuts.length; i++) {
+    const a = SCALE[cuts[i - 1].size], b = SCALE[cuts[i].size];
+    if (a && b) { pairs++; if (a !== b) chg++; if (Math.abs(a - b) >= 2) jump++; }
+  }
+  return { pairs, chg, jump };
+}
 export const ANGLES = [['', '水平'], ['a', 'アオリ'], ['u', '真下'], ['f', 'フカン'], ['o', '真上'], ['d', 'ダッチ']];
-export const SUBJ = [['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4以上'], ['G', '群衆']];
 export const BINS = [[0, 1, '1秒未満'], [1, 2, '1〜2秒'], [2, 3, '2〜3秒'], [3, 5, '3〜5秒'], [5, 10, '5〜10秒'], [10, 1e9, '10秒以上']];
 const MAIN = new Set(['アバン', 'Aパート', 'Bパート']);
 const PERSHEET = 25, CW = 480, CH = 180;
 const label = (L, v) => (L.find(x => x[0] === v) || [, v])[1];
 
-let R = null, urls = [], editable = true, saveT = null, F = { size: new Set(), angle: new Set(), subj: new Set(), bg: 'all', min: '', max: '', part: '' };
+let R = null, urls = [], editable = true, saveT = null, F = { size: new Set(), angle: new Set(), min: '', max: '', part: '' };
 export const sec = (c, fps) => (c.b - c.a + 1) / fps;
 // アニメの尺の書き方（秒＋コマ、24コマ＝1秒）。23.976／24fps の動画は動画のコマ数そのまま、それ以外は秒数から直す
 export const koma = (c, fps) => Math.abs(fps - 24) < 0.1 ? c.b - c.a + 1 : Math.round((c.b - c.a + 1) / fps * 24);
@@ -28,7 +43,7 @@ export function cutsFromBoundaries(res) {
     for (let f = p.f + 1; f <= p.end; f++) if (B.has(f)) { cuts.push({ a, b: f - 1, part: p.name }); a = f; }
     cuts.push({ a, b: p.end, part: p.name });
   }
-  return cuts.map((c, i) => ({ n: i + 1, ...c, size: '', angle: '', bg: false, subj: '' }));
+  return cuts.map((c, i) => ({ n: i + 1, ...c, size: '', angle: '' }));
 }
 // 各カットの頭・中・尻のコマを1枚の画像（左に中の大きなコマ、右に頭と尻）にまとめ、25カットずつの画像にする
 export async function makeSheets(meta, cuts, onProgress) {
@@ -69,9 +84,8 @@ export function stats(rec, list) {
     n, total: tot, mean: n ? tot / n : 0, median: med, max: n ? s[n - 1] : 0, ...logStats(s),
     bins: BINS.map(([lo, hi]) => s.filter(x => x >= lo && x < hi).length),
     long10share: tot ? s.filter(x => x >= 10).reduce((a, b) => a + b, 0) / tot : 0,
-    size: cnt('size', SIZES), sizeUnset: cuts.filter(c => !c.size && !c.bg).length,
-    angle: cnt('angle', ANGLES), bg: cuts.filter(c => c.bg).length,
-    subj: cnt('subj', SUBJ), subjUnset: cuts.filter(c => !c.subj && !c.bg).length,
+    size: cnt('size', SIZES), sizeUnset: cuts.filter(c => !c.size).length,
+    angle: cnt('angle', ANGLES), trans: sizeTrans(cuts),
   };
 }
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 + '%' : '–';
@@ -83,8 +97,8 @@ function statsHtml(st, title) {
   <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${skSec(st.mean, R.video.fps)}</b> <span>${f1(st.mean)}秒</span></td><td>中央値<br><b>${skSec(st.median, R.video.fps)}</b> <span>${f1(st.median)}秒</span></td><td>SDlog（ばらつき）<br><b>${st.sdLog.toFixed(3)}</b></td><td>最長<br><b>${skSec(st.max, R.video.fps)}</b> <span>${f1(st.max)}秒</span></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
   <table class="st"><tr><th>長さ</th>${BINS.map((b, i) => `<td>${b[2]}<br><b>${st.bins[i]}</b> <span>${pct(st.bins[i], st.n)}</span></td>`).join('')}</tr></table>
   <table class="st"><tr><th>サイズ<small>（割合は途中で変化を除く）</small></th>${row(SIZES.filter(x => x[0] !== 'CH'), st.size, sz)}<td>途中で変化<br><b>${st.size.CH}</b></td><td>未入力<br><b>${st.sizeUnset}</b></td></tr></table>
-  <table class="st"><tr><th>アングル</th>${row(ANGLES, st.angle, st.n)}</tr></table>
-  <table class="st"><tr><th>被写体</th><td>BGオンリー<br><b>${st.bg}</b> <span>${pct(st.bg, st.n)}</span></td>${row(SUBJ, st.subj, st.n)}<td>未入力<br><b>${st.subjUnset}</b></td></tr></table>`;
+  <table class="st"><tr><th>サイズのつなぎ<small>（隣りあう人物のカット ${st.trans.pairs} か所）</small></th><td>サイズが変わる<br><b>${pct(st.trans.chg, st.trans.pairs)}</b></td><td>大きく飛ぶ（2段以上）<br><b>${pct(st.trans.jump, st.trans.pairs)}</b></td></tr></table>
+  <table class="st"><tr><th>アングル</th>${row(ANGLES, st.angle, st.n)}</tr></table>`;
 }
 
 // ---------- 画面 ----------
@@ -94,8 +108,6 @@ function match(c) {
   const s = koma(c, R.video.fps) / 24;
   if (F.size.size && !F.size.has(c.size || '-')) return false;
   if (F.angle.size && !F.angle.has(c.angle || '')) return false;
-  if (F.subj.size && !F.subj.has(c.subj || '-')) return false;
-  if (F.bg === 'bg' && !c.bg) return false; if (F.bg === 'nobg' && c.bg) return false;
   const lo = parseT(F.min), hi = parseT(F.max); if (lo !== null && s < lo - 1e-6) return false; if (hi !== null && s > hi + 1e-6) return false;
   if (F.part && c.part !== F.part) return false;
   return true;
@@ -111,15 +123,13 @@ function chips(el, L, set, extra) {
 function filtersInit() {
   chips($('fSize'), SIZES, F.size, [['-', '未入力']]);
   chips($('fAngle'), ANGLES, F.angle);
-  chips($('fSubj'), SUBJ, F.subj, [['-', '未入力']]);
-  $('fBg').value = F.bg; $('fMin').value = F.min; $('fMax').value = F.max;
+  $('fMin').value = F.min; $('fMax').value = F.max;
   const ps = [...new Set(R.cuts.map(c => c.part))];
   $('fPart').innerHTML = '<option value="">すべてのパート</option>' + ps.map(p => `<option>${p}</option>`).join(''); $('fPart').value = F.part;
-  $('fBg').onchange = () => { F.bg = $('fBg').value; render(); };
   $('fMin').oninput = () => { F.min = $('fMin').value; render(); };
   $('fMax').oninput = () => { F.max = $('fMax').value; render(); };
   $('fPart').onchange = () => { F.part = $('fPart').value; render(); };
-  $('fClear').onclick = () => { F = { size: new Set(), angle: new Set(), subj: new Set(), bg: 'all', min: '', max: '', part: '' }; filtersInit(); render(); };
+  $('fClear').onclick = () => { F = { size: new Set(), angle: new Set(), min: '', max: '', part: '' }; filtersInit(); render(); };
 }
 function btnRow(c, key, L, name) {
   const d = document.createElement('div'); d.className = 'row'; d.setAttribute('role', 'group'); d.setAttribute('aria-label', name);
@@ -127,13 +137,13 @@ function btnRow(c, key, L, name) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.disabled = !editable;
     const on = () => (c[key] || '') === v && (key !== 'angle' || true);
     b.setAttribute('aria-pressed', on());
-    b.onclick = () => { c[key] = (c[key] || '') === v && key !== 'angle' ? '' : v; if (key !== 'angle' && c[key]) c.bg = false; changed(c); };
+    b.onclick = () => { c[key] = (c[key] || '') === v && key !== 'angle' ? '' : v; changed(c); };
     d.append(b);
   }
   return d;
 }
 function card(c) {
-  const el = document.createElement('div'); el.className = 'card' + (c.bg ? ' isbg' : ''); el.dataset.n = c.n;
+  const el = document.createElement('div'); el.className = 'card' + (c.size === 'N' ? ' isbg' : ''); el.dataset.n = c.n;
   const s = Math.floor((c.n - 1) / PERSHEET), q = (c.n - 1) % PERSHEET, rows = Math.min(PERSHEET, R.cuts.length - s * PERSHEET);
   const im = document.createElement('div'); im.className = 'im';
   if (urls[s]) im.style.backgroundImage = `url(${urls[s]})`; im.dataset.s = s;
@@ -143,10 +153,6 @@ function card(c) {
   hd.innerHTML = `<b>C${c.n}</b> <span>${sk(koma(c, R.video.fps))}（${f1(sec(c, R.video.fps))}秒）</span> <span class="tc">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}　${c.part}</span>`;
   el.append(im, hd);
   el.append(btnRow(c, 'size', SIZES, 'サイズ'), btnRow(c, 'angle', ANGLES, 'アングル'));
-  const r = btnRow(c, 'subj', SUBJ, '被写体の数');
-  const bg = document.createElement('button'); bg.type = 'button'; bg.textContent = 'BGオンリー'; bg.className = 'bgb'; bg.disabled = !editable; bg.setAttribute('aria-pressed', !!c.bg);
-  bg.onclick = () => { c.bg = !c.bg; if (c.bg) { c.size = ''; c.subj = '0'; } changed(c); };
-  r.prepend(bg); el.append(r);
   return el;
 }
 function changed(c) {
@@ -175,6 +181,7 @@ export function show(rec, sheetUrls, opt = {}) {
   R = rec; urls = sheetUrls; editable = opt.editable !== false;
   const bk = $('backWork'); if (bk) { bk.hidden = !(WORK && WORK.rec !== R); bk.textContent = WORK ? `← 作業中の回（${WORK.rec.id}）に戻る` : ''; }
   if (opt.draft !== false) loadDraft();
+  migrate(rec);
   $('cutTitle').textContent = `${rec.work || ''} ${rec.ep || ''}${rec.title ? '「' + rec.title + '」' : ''}（${rec.id}）`;
   $('memo').value = rec.memo || ''; $('memo').oninput = () => { R.memo = $('memo').value; draft(); };
   $('recSave').textContent = opt.saved ? '記録から開きました' : '';
@@ -193,15 +200,15 @@ export function summaryText(rec) {
     '| 長さ | ' + BINS.map(b => b[2]).join(' | ') + ' |', '|---|' + BINS.map(() => '---').join('|') + '|', '| カット | ' + st.bins.map((v, i) => `${v}（${pct(v, st.n)}）`).join(' | ') + ' |', '',
     '| サイズ | ' + SIZES.map(s => s[1]).join(' | ') + ' | 未入力 |', '|---|' + SIZES.map(() => '---').join('|') + '|---|', '| カット | ' + SIZES.map(([v]) => v === 'CH' ? st.size[v] : `${st.size[v]}（${pct(st.size[v], sz)}）`).join(' | ') + ` | ${st.sizeUnset} |`, '',
     '| アングル | ' + ANGLES.map(s => s[1]).join(' | ') + ' |', '|---|' + ANGLES.map(() => '---').join('|') + '|', '| カット | ' + ANGLES.map(([v]) => `${st.angle[v]}（${pct(st.angle[v], st.n)}）`).join(' | ') + ' |', '',
-    `| 被写体 | BGオンリー | ` + SUBJ.map(s => s[1]).join(' | ') + ' |', '|---|---|' + SUBJ.map(() => '---').join('|') + '|', `| カット | ${st.bg}（${pct(st.bg, st.n)}） | ` + SUBJ.map(([v]) => `${st.subj[v]}（${pct(st.subj[v], st.n)}）`).join(' | ') + ' |', '',
-    '## メモ', '', rec.memo || '（なし）', '', '## カット', '', '| カット | 開始 | 尺（秒+コマ） | 秒数 | パート | サイズ | アングル | BGオンリー | 被写体 |', '|---|---|---|---|---|---|---|---|---|'];
-  for (const c of rec.cuts) { const t = c.a / rec.video.fps; L.push(`| ${c.n} | ${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')} | ${sk(koma(c, rec.video.fps))} | ${f1(sec(c, rec.video.fps))} | ${c.part} | ${c.size ? label(SIZES, c.size) : ''} | ${label(ANGLES, c.angle || '')} | ${c.bg ? '○' : ''} | ${c.subj ? label(SUBJ, c.subj) : ''} |`); }
+    `サイズのつなぎ（隣りあう人物のカット ${st.trans.pairs} か所）：サイズが変わる ${pct(st.trans.chg, st.trans.pairs)}、大きく飛ぶ（2段以上） ${pct(st.trans.jump, st.trans.pairs)}`, '',
+    '## メモ', '', rec.memo || '（なし）', '', '## カット', '', '| カット | 開始 | 尺（秒+コマ） | 秒数 | パート | サイズ | アングル |', '|---|---|---|---|---|---|---|'];
+  for (const c of rec.cuts) { const t = c.a / rec.video.fps; L.push(`| ${c.n} | ${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')} | ${sk(koma(c, rec.video.fps))} | ${f1(sec(c, rec.video.fps))} | ${c.part} | ${c.size ? label(SIZES, c.size) : ''} | ${label(ANGLES, c.angle || '')} |`); }
   L.push('', '画像：img/ の各ファイルは25カットずつ（左に中のコマ、右上に頭、右下に尻）。');
   return L.join('\n');
 }
 export function indexEntry(rec) {
   const st = stats(rec);
-  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, bg: st.bg, subj: st.subj };
+  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, trans: st.trans };
 }
 export async function saveRecord(blobs, onProgress) {
   const rec = R; rec.updated = new Date().toISOString();
