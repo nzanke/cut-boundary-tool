@@ -104,6 +104,8 @@ table.st span{color:var(--muted);font-family:var(--num)}
 /* 過去の記録：色は3系統（長さ＝藍、サイズ＝薔薇、アングル＝青磁）。彩度を抑えた中間の明るさで、帯と見出しの線だけに使う */
 .view[data-v="records"]{--cl:#5865f2;--cl2:#9b6cf5;--cs:#ec4f86;--cs2:#f7925a;--ca:#13a8c2;--ca2:#2fc493;--tint:9%;--nmbg:#252a3d;--nmfg:#fff;--nmmu:#b9bfd6}
 @media (prefers-color-scheme:dark){.view[data-v="records"]{--cl:#8a93ff;--cl2:#b49bff;--cs:#ff7aa8;--cs2:#ffb07a;--ca:#4fd0e6;--ca2:#5be0b0;--tint:14%;--nmbg:#0f1220;--nmfg:#fff;--nmmu:#a3a9c2}}
+.view[data-v="records"]:not([hidden]){display:block;width:fit-content;max-width:100%}
+#recTable>p.note,#recMsg{width:0;min-width:100%}
 .rec-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:4px 0 14px}
 .rec-bar h2{font-size:17px;font-weight:700;margin:0 8px 0 0}
 .seg{display:inline-flex;border-radius:10px;padding:3px;background:color-mix(in srgb,var(--fg) 6%,var(--bg));gap:2px}
@@ -117,9 +119,9 @@ table.st span{color:var(--muted);font-family:var(--num)}
 #recQ:focus-visible{outline:2px solid var(--cl);outline-offset:1px}
 button.ghost{background:transparent}
 #recCount{margin-left:auto}
-.tw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-table.cmp{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
-table.cmp th,table.cmp td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tw{overflow:auto;width:fit-content;max-width:100%;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table.cmp{border-collapse:separate;border-spacing:0;font-size:12.5px}
+table.cmp th,table.cmp td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 table.cmp td{white-space:nowrap;font-family:var(--num);color:var(--fg);text-align:right}
 table.cmp td small{display:block;color:var(--muted);font-size:10.5px}
 table.cmp .na{color:var(--line)}
