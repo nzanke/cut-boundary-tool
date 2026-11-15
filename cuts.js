@@ -4,10 +4,7 @@ import * as store from './store.js';
 
 const $ = id => document.getElementById(id);
 export const SIZES = [['XL', '超ロング'], ['L', 'ロング'], ['M', 'ミドル'], ['U', 'アップ'], ['XU', '超アップ'], ['N', '人物なし'], ['CH', '途中で変化']];
-const SCALE = { XL: 1, L: 2, M: 3, U: 4, XU: 5 };
-// サイズの平均・ばらつきに使う目盛り（ミドルを0に、引きを＋、寄りを−）
-export const SCORE = { XL: 5, L: 3, M: 0, U: -3, XU: -5 };
-export function scoreOf(o) { if (!o || o.n < 2) return { mean: null, sd: null }; let m = o.sum / o.n; if (Math.abs(m) < 0.005) m = 0; return { mean: m, sd: Math.sqrt(Math.max(0, (o.sq - o.n * m * m) / (o.n - 1))) }; }  // 人物のサイズの順番（人物なし・途中で変化は入れない）
+const SCALE = { XL: 1, L: 2, M: 3, U: 4, XU: 5 };  // 人物のサイズの順番（人物なし・途中で変化は入れない）
 // 前の版の「BGオンリー」「被写体0」は「人物なし」にまとめる（サイズを入れ始めている回だけ）
 export function migrate(rec) {
   if (!rec.cuts.some(c => c.size && c.size !== 'N')) return 0;
@@ -89,7 +86,6 @@ export function stats(rec, list) {
     long10share: tot ? s.filter(x => x >= 10).reduce((a, b) => a + b, 0) / tot : 0,
     size: cnt('size', SIZES), sizeUnset: cuts.filter(c => !c.size).length,
     angle: cnt('angle', ANGLES), trans: sizeTrans(cuts),
-    sizeScore: cuts.reduce((o, c) => { const v = SCORE[c.size]; if (v !== undefined) { o.n++; o.sum += v; o.sq += v * v; } return o; }, { n: 0, sum: 0, sq: 0 }),
   };
 }
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 + '%' : '–';
@@ -101,7 +97,6 @@ function statsHtml(st, title) {
   <table class="st"><tr><td>カット<br><b>${st.n}</b></td><td>尺<br><b>${Math.floor(st.total / 60)}分${Math.round(st.total % 60)}秒</b></td><td>平均<br><b>${skSec(st.mean, R.video.fps)}</b> <span>${f1(st.mean)}秒</span></td><td>中央値<br><b>${skSec(st.median, R.video.fps)}</b> <span>${f1(st.median)}秒</span></td><td>SDlog（ばらつき）<br><b>${st.sdLog.toFixed(3)}</b></td><td>最長<br><b>${skSec(st.max, R.video.fps)}</b> <span>${f1(st.max)}秒</span></td><td>10秒以上の尺<br><b>${pct(st.long10share, 1)}</b></td></tr></table>
   <table class="st"><tr><th>長さ</th>${BINS.map((b, i) => `<td>${b[2]}<br><b>${st.bins[i]}</b> <span>${pct(st.bins[i], st.n)}</span></td>`).join('')}</tr></table>
   <table class="st"><tr><th>サイズ<small>（割合は途中で変化を除く）</small></th>${row(SIZES.filter(x => x[0] !== 'CH'), st.size, sz)}<td>途中で変化<br><b>${st.size.CH}</b></td><td>未入力<br><b>${st.sizeUnset}</b></td></tr></table>
-  <table class="st"><tr><th>サイズの平均・ばらつき<small>（超ロング5・ロング3・ミドル0・アップ−3・超アップ−5）</small></th><td>平均<br><b>${scoreOf(st.sizeScore).mean == null ? '–' : scoreOf(st.sizeScore).mean.toFixed(2)}</b></td><td>ばらつき（標準偏差）<br><b>${scoreOf(st.sizeScore).sd == null ? '–' : scoreOf(st.sizeScore).sd.toFixed(2)}</b></td></tr></table>
   <table class="st"><tr><th>サイズのつなぎ<small>（隣りあう人物のカット ${st.trans.pairs} か所）</small></th><td>サイズが変わる<br><b>${pct(st.trans.chg, st.trans.pairs)}</b></td><td>大きく飛ぶ（2段以上）<br><b>${pct(st.trans.jump, st.trans.pairs)}</b></td></tr></table>
   <table class="st"><tr><th>アングル</th>${row(ANGLES, st.angle, st.n)}</tr></table>`;
 }
@@ -205,7 +200,6 @@ export function summaryText(rec) {
     '| 長さ | ' + BINS.map(b => b[2]).join(' | ') + ' |', '|---|' + BINS.map(() => '---').join('|') + '|', '| カット | ' + st.bins.map((v, i) => `${v}（${pct(v, st.n)}）`).join(' | ') + ' |', '',
     '| サイズ | ' + SIZES.map(s => s[1]).join(' | ') + ' | 未入力 |', '|---|' + SIZES.map(() => '---').join('|') + '|---|', '| カット | ' + SIZES.map(([v]) => v === 'CH' ? st.size[v] : `${st.size[v]}（${pct(st.size[v], sz)}）`).join(' | ') + ` | ${st.sizeUnset} |`, '',
     '| アングル | ' + ANGLES.map(s => s[1]).join(' | ') + ' |', '|---|' + ANGLES.map(() => '---').join('|') + '|', '| カット | ' + ANGLES.map(([v]) => `${st.angle[v]}（${pct(st.angle[v], st.n)}）`).join(' | ') + ' |', '',
-    `サイズの平均 ${scoreOf(st.sizeScore).mean == null ? '–' : scoreOf(st.sizeScore).mean.toFixed(2)}、ばらつき（標準偏差） ${scoreOf(st.sizeScore).sd == null ? '–' : scoreOf(st.sizeScore).sd.toFixed(2)}（超ロング5・ロング3・ミドル0・アップ−3・超アップ−5）`, '',
     `サイズのつなぎ（隣りあう人物のカット ${st.trans.pairs} か所）：サイズが変わる ${pct(st.trans.chg, st.trans.pairs)}、大きく飛ぶ（2段以上） ${pct(st.trans.jump, st.trans.pairs)}`, '',
     '## メモ', '', rec.memo || '（なし）', '', '## カット', '', '| カット | 開始 | 尺（秒+コマ） | 秒数 | パート | サイズ | アングル |', '|---|---|---|---|---|---|---|'];
   for (const c of rec.cuts) { const t = c.a / rec.video.fps; L.push(`| ${c.n} | ${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')} | ${sk(koma(c, rec.video.fps))} | ${f1(sec(c, rec.video.fps))} | ${c.part} | ${c.size ? label(SIZES, c.size) : ''} | ${label(ANGLES, c.angle || '')} |`); }
@@ -214,7 +208,7 @@ export function summaryText(rec) {
 }
 export function indexEntry(rec) {
   const st = stats(rec);
-  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, trans: st.trans, sizeScore: st.sizeScore };
+  return { id: rec.id, work: rec.work, ep: rec.ep, title: rec.title, updated: new Date().toISOString(), n: st.n, total: st.total, mean: st.mean, median: st.median, aslLog: st.aslLog, sdLog: st.sdLog, fps: rec.video.fps, lens: rec.cuts.map(c => c.b - c.a + 1), long10share: st.long10share, bins: st.bins, size: st.size, sizeUnset: st.sizeUnset, angle: st.angle, trans: st.trans };
 }
 export async function saveRecord(blobs, onProgress) {
   const rec = R; rec.updated = new Date().toISOString();
