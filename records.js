@@ -35,22 +35,58 @@ function agg(rows) { // 作品ごとにまとめる（カット数で重みづ�
   // 中央値・SDlog は全カットの長さをまとめて計算（各カットの長さを持たない古い記録が混ざるときは出さない）
   return [...by.values()].map(a => ({ ...a, mean: a.n ? a.total / a.n : 0, long10share: a.total ? a.long10 / a.total : 0, ...(a.allLens && a.secs.length ? { median: medianOf(a.secs), ...logStats(a.secs) } : { median: null, sdLog: null }) }));
 }
+// ---------- 比較表：列の定義・並び替え・絞り込み ----------
+const UI = (() => { try { return JSON.parse(localStorage.getItem('cbt-rec-ui') || '{}'); } catch (e) { return {}; } })();
+UI.sort = UI.sort || null; UI.groups = UI.groups || { len: true, size: true, angle: true }; UI.q = UI.q || '';
+const saveUI = () => { try { localStorage.setItem('cbt-rec-ui', JSON.stringify(UI)); } catch (e) { } };
+const P = (a, b) => b ? a / b : null;                         // 割合（0〜1）。分母が0なら空
+const szBase = r => SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + ((r.size || {})[v] || 0), 0);
+const fmtPct = v => v == null ? '–' : (Math.round(v * 1000) / 10).toFixed(1) + '<small>%</small>';
+const fmtT = v => v == null ? '–' : `<b>${sk(Math.round(v * 24))}</b><small>${f1(v)}秒</small>`;
+const COLS = [
+  { g: 'len', k: 'n', t: 'カット', v: r => r.n, f: v => `<b>${v}</b>` },
+  { g: 'len', k: 'total', t: '尺', v: r => r.total, f: v => `${Math.floor(v / 60)}<small>分</small>` },
+  { g: 'len', k: 'mean', t: '平均', v: r => r.mean, f: fmtT },
+  { g: 'len', k: 'median', t: '中央値', v: r => r.median, f: fmtT },
+  { g: 'len', k: 'sdLog', t: 'SDlog', tip: 'カット長の常用対数の標準偏差。大きいほど長短の差が大きい', v: r => r.sdLog, f: v => v == null ? '–' : v.toFixed(3) },
+  { g: 'len', k: 'short', t: '2秒未満', v: r => P(r.bins[0] + r.bins[1], r.n), f: fmtPct, bar: 1 },
+  { g: 'len', k: 'long10', t: '10秒以上の尺', tip: '10秒以上のカットが尺に占める割合', v: r => r.long10share, f: fmtPct, bar: 1 },
+  { g: 'size', k: 'sizeIn', t: '入力済み', tip: 'サイズを入れたカットの割合', v: r => P(r.n - (r.sizeUnset || 0), r.n), f: fmtPct },
+  ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t, v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
+  { g: 'size', k: 'chg', t: 'サイズが変わる', tip: '隣りあう人物のカットで、サイズが変わる割合', v: r => r.trans ? P(r.trans.chg, r.trans.pairs) : null, f: fmtPct, bar: 1 },
+  { g: 'size', k: 'jump', t: '大きく飛ぶ', tip: '隣りあう人物のカットで、2段以上サイズが変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
+  ...ANGLES.filter(x => x[0]).map(([c, t]) => ({ g: 'angle', k: 'a' + c, t, v: r => P((r.angle || {})[c] || 0, r.n), f: fmtPct, bar: 1 })),
+];
+const GROUPS = [['len', '長さ'], ['size', 'サイズ'], ['angle', 'アングル']];
 function renderTable() {
-  const byWork = $('byWork').checked;
-  const rows = byWork ? agg(IDX) : [...IDX].sort((a, b) => (a.work || '').localeCompare(b.work || '', 'ja') || String(a.ep).localeCompare(String(b.ep), 'ja', { numeric: true }));
-  const sz = r => SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + (r.size[v] || 0), 0);
-  const head = `<tr><th>${byWork ? '作品' : '回'}</th><th>カット</th><th>尺</th><th>平均</th><th>中央値</th><th>SDlog</th><th>2秒未満</th><th>10秒以上の尺</th>`
-    + SIZES.filter(x => x[0] !== 'CH').map(s => `<th>${s[1]}</th>`).join('') + ANGLES.filter(x => x[0]).map(a => `<th>${a[1]}</th>`).join('')
-    + '<th>サイズが変わる</th><th>大きく飛ぶ</th>' + (byWork ? '' : '<th></th>') + '</tr>';
-  const body = rows.map(r => `<tr><td class="nm">${byWork ? `${r.work}<br><small>${r.title}</small>` : `${r.work || ''} ${r.ep || ''}<br><small>${r.title || ''}（${r.id}）</small>`}</td>
-    <td>${r.n}</td><td>${Math.floor(r.total / 60)}分</td><td><b>${sk(Math.round(r.mean * 24))}</b><br>${f1(r.mean)}秒</td><td>${r.median == null ? '–' : `${sk(Math.round(r.median * 24))}<br>${f1(r.median)}秒`}</td><td>${r.sdLog == null ? '–' : r.sdLog.toFixed(3)}</td>
-    <td>${pct(r.bins[0] + r.bins[1], r.n)}</td><td>${pct(r.long10share, 1)}</td>`
-    + SIZES.filter(x => x[0] !== 'CH').map(([v]) => `<td>${pct(r.size[v] || 0, sz(r))}</td>`).join('')
-    + ANGLES.filter(x => x[0]).map(([v]) => `<td>${pct(r.angle[v] || 0, r.n)}</td>`).join('')
-    + `<td>${r.trans ? pct(r.trans.chg, r.trans.pairs) : '–'}</td><td>${r.trans ? pct(r.trans.jump, r.trans.pairs) : '–'}</td>`
-    + (byWork ? '' : `<td><button type="button" data-open="${r.id}">開く</button></td>`) + '</tr>').join('');
-  $('recTable').innerHTML = rows.length ? `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table><p class="note">サイズの割合は、サイズを入れたカット（途中で変化を除く）の中の割合。アングルは全カットの中の割合。「サイズが変わる」「大きく飛ぶ（2段以上）」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中の割合。SDlog はカット長（秒）の常用対数の標準偏差で、大きいほど長短の差が大きい。</p>` : '';
+  const byWork = UI.byWork = $('byWork').checked; saveUI();
+  const q = UI.q.trim().toLowerCase();
+  let rows = byWork ? agg(IDX) : [...IDX];
+  if (q) rows = rows.filter(r => `${r.work || ''} ${r.ep || ''} ${r.title || ''} ${r.id || ''}`.toLowerCase().includes(q));
+  const cols = COLS.filter(c => UI.groups[c.g]);
+  const sc = UI.sort && cols.find(c => c.k === UI.sort.k);
+  if (sc) rows.sort((a, b) => { const x = sc.v(a), y = sc.v(b); if (x == null) return 1; if (y == null) return -1; return (x - y) * UI.sort.d; });
+  else rows.sort((a, b) => (a.work || '').localeCompare(b.work || '', 'ja') || String(a.ep || '').localeCompare(String(b.ep || ''), 'ja', { numeric: true }));
+  const max = Object.fromEntries(cols.filter(c => c.bar).map(c => [c.k, Math.max(0, ...rows.map(r => c.v(r) || 0))]));
+  $('recCount').textContent = `${rows.length} ${byWork ? '作品' : '回'}`;
+  $('recGroups').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', !!UI.groups[b.dataset.g]));
+  $('recMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.m === 'work') === byWork));
+  if (!rows.length) { $('recTable').innerHTML = IDX.length ? '<p class="note">当てはまる記録がありません</p>' : ''; return; }
+  const gs = GROUPS.filter(([g]) => UI.groups[g]);
+  const h1 = `<tr><th class="nm" rowspan="2">${byWork ? '作品' : '回'}</th>` + gs.map(([g, t]) => `<th class="grp g-${g}" colspan="${cols.filter(c => c.g === g).length}">${t}</th>`).join('') + '</tr>';
+  const h2 = '<tr>' + cols.map(c => { const on = UI.sort && UI.sort.k === c.k; return `<th class="g-${c.g}${on ? ' on' : ''}" data-k="${c.k}" title="${c.tip || ''}" aria-sort="${on ? (UI.sort.d > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button">${c.t}<i>${on ? (UI.sort.d > 0 ? '▲' : '▼') : '↕'}</i></button></th>`; }).join('') + '</tr>';
+  const body = rows.map(r => `<tr>${byWork
+      ? `<td class="nm"><span class="w">${r.work}</span><span class="e">${r.title}</span></td>`
+      : `<td class="nm"><button type="button" class="open" data-open="${r.id}" title="この回を開く"><span class="w">${r.work || ''}</span><span class="e">${r.ep || ''}${r.title ? '　' + r.title : ''}</span></button></td>`}`
+    + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + '</tr>').join('');
+  $('recTable').innerHTML = `<div class="tw"><table class="cmp"><thead>${h1}${h2}</thead><tbody>${body}</tbody></table></div>
+    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開く。'}サイズの割合は、サイズを入れたカット（途中で変化を除く）の中の割合。アングルは全カットの中の割合。「サイズが変わる」「大きく飛ぶ（2段以上）」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中の割合。帯の長さは、表示中の中でいちばん大きい値との比。</p>`;
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));
+  $('recTable').querySelectorAll('th[data-k] button').forEach(b => b.onclick = () => {
+    const k = b.parentElement.dataset.k;
+    UI.sort = !UI.sort || UI.sort.k !== k ? { k, d: -1 } : UI.sort.d < 0 ? { k, d: 1 } : null;
+    saveUI(); renderTable();
+  });
 }
 export async function openRecord(id, onShown) {
   $('recMsg').textContent = '記録を開いています…';
@@ -66,4 +102,10 @@ export async function openRecord(id, onShown) {
     await Promise.all([next(), next(), next()]);
   } catch (e) { $('recMsg').textContent = String(e.message || e); }
 }
-export function init() { $('backWork').onclick = () => { backToWork(); window.scrollTo(0, 0); }; $('byWork').onchange = renderTable; $('recReload').onclick = loadList; }
+export function init() {
+  $('backWork').onclick = () => { backToWork(); window.scrollTo(0, 0); };
+  $('byWork').checked = !!UI.byWork; $('byWork').onchange = renderTable; $('recReload').onclick = loadList;
+  $('recMode').querySelectorAll('button').forEach(b => b.onclick = () => { $('byWork').checked = b.dataset.m === 'work'; renderTable(); });
+  $('recGroups').querySelectorAll('button').forEach(b => b.onclick = () => { UI.groups[b.dataset.g] = !UI.groups[b.dataset.g]; if (!Object.values(UI.groups).some(Boolean)) UI.groups[b.dataset.g] = true; saveUI(); renderTable(); });
+  $('recQ').value = UI.q; $('recQ').oninput = () => { UI.q = $('recQ').value; saveUI(); renderTable(); };
+}
