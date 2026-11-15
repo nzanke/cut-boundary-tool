@@ -56,14 +56,14 @@ const COLS = [
   ...SIZES.filter(x => x[0] !== 'CH').map(([c, t]) => ({ g: 'size', k: 's' + c, t, v: r => P((r.size || {})[c] || 0, szBase(r)), f: fmtPct, bar: 1 })),
   { g: 'size', k: 'chg', t: 'サイズが<br>変わる', tip: '隣りあう人物のカットで、サイズが変わる割合', v: r => r.trans ? P(r.trans.chg, r.trans.pairs) : null, f: fmtPct, bar: 1 },
   { g: 'size', k: 'jump', t: '2段以上<br>変わる', tip: '隣りあう人物のカットで、サイズが2段以上変わる割合', v: r => r.trans ? P(r.trans.jump, r.trans.pairs) : null, f: fmtPct, bar: 1 },
-  ...ANGLES.filter(x => x[0]).map(([c, t]) => ({ g: 'angle', k: 'a' + c, t, v: r => P((r.angle || {})[c] || 0, r.n), f: fmtPct, bar: 1 })),
 ];
-const GROUPS = [['len', '長さ'], ['size', 'サイズ（%）'], ['angle', 'アングル（%）']];
+const GROUPS = [['len', '長さ'], ['size', 'サイズ（%）']];
 function renderTable() {
   const byWork = UI.byWork = $('byWork').checked; saveUI();
   const q = UI.q.trim().toLowerCase();
   let rows = byWork ? agg(IDX) : [...IDX];
   if (q) rows = rows.filter(r => `${r.work || ''} ${r.ep || ''} ${r.title || ''} ${r.id || ''}`.toLowerCase().includes(q));
+  if (!GROUPS.some(([g]) => UI.groups[g])) GROUPS.forEach(([g]) => UI.groups[g] = true);
   const cols = COLS.filter(c => UI.groups[c.g]);
   const sc = UI.sort && cols.find(c => c.k === UI.sort.k);
   if (sc) rows.sort((a, b) => { const x = sc.v(a), y = sc.v(b); if (x == null) return 1; if (y == null) return -1; return (x - y) * UI.sort.d; });
@@ -81,7 +81,7 @@ function renderTable() {
       : `<td class="nm"><button type="button" class="open" data-open="${r.id}" title="この回を開く"><span class="w">${hw(r.work)}</span><span class="e">${hw(r.ep)}${r.title ? '　' + hw(r.title) : ''}</span></button></td>`}`
     + cols.map(c => { const v = c.v(r), m = max[c.k]; return `<td class="g-${c.g}${c.bar ? ' bar' : ''}${UI.sort && UI.sort.k === c.k ? ' on' : ''}"${c.bar && v != null && m ? ` style="--w:${(v / m * 100).toFixed(1)}%"` : ''}>${c.f(v)}</td>`; }).join('') + '</tr>').join('');
   $('recTable').innerHTML = `<div class="tw"><table class="cmp"><thead>${h1}${h2}</thead><tbody>${body}</tbody></table></div>
-    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開きます。'}数字は％。サイズの割合は、サイズを入れたカット（途中で変化を除く）の中での割合です。「サイズが変わる」「2段以上変わる」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中での割合。アングルは全カットの中での割合。数字の下の線は、表示中でいちばん大きい値に対する長さです。</p>`;
+    <p class="note">列の名前を押すと並び替え（もう一度押すと逆順、3回目で元の並び）。${byWork ? '' : '回の名前を押すと、その回のカードを開きます。'}数字は％。サイズの割合は、サイズを入れたカット（途中で変化を除く）の中での割合です。「サイズが変わる」「2段以上変わる」は、隣りあうカットが両方とも人物のサイズ（超ロング〜超アップ）のつなぎの中での割合。数字の下の線は、表示中でいちばん大きい値に対する長さです。</p>`;
   $('recTable').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openRecord(b.dataset.open));
   $('recTable').querySelectorAll('th[data-k] button').forEach(b => b.onclick = () => {
     const k = b.parentElement.dataset.k;
@@ -108,6 +108,6 @@ export function init() {
   $('byWork').checked = !!UI.byWork; $('byWork').onchange = renderTable; $('recReload').onclick = loadList;
   // 古いページ（キャッシュ）と混ざっても他のボタンが止まらないよう、無い要素は飛ばす
   if ($('recMode')) $('recMode').querySelectorAll('button').forEach(b => b.onclick = () => { $('byWork').checked = b.dataset.m === 'work'; renderTable(); });
-  if ($('recGroups')) $('recGroups').querySelectorAll('button').forEach(b => b.onclick = () => { UI.groups[b.dataset.g] = !UI.groups[b.dataset.g]; if (!Object.values(UI.groups).some(Boolean)) UI.groups[b.dataset.g] = true; saveUI(); renderTable(); });
+  if ($('recGroups')) $('recGroups').querySelectorAll('button').forEach(b => b.onclick = () => { UI.groups[b.dataset.g] = !UI.groups[b.dataset.g]; if (!GROUPS.some(([g]) => UI.groups[g])) UI.groups[b.dataset.g] = true; saveUI(); renderTable(); });
   if ($('recQ')) { $('recQ').value = UI.q; $('recQ').oninput = () => { UI.q = $('recQ').value; saveUI(); renderTable(); }; }
 }
