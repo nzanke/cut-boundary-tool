@@ -94,6 +94,42 @@ export function stats(rec, list) {
 }
 const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 + '%' : '–';
 const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
+// 本編を1分ごとに区切り、各1分の間に始まるカットの数を棒で並べる（OP・アイキャッチ・ED を除き、本編をつなげた時間で数える）
+const PART_COLOR = { 'アバン': '#9aa0b5', 'Aパート': '#5865f2', 'Bパート': '#ec4f86', 'Cパート': '#13a8c2' };
+export function minuteCounts(rec) {
+  const fps = rec.video.fps, bins = []; let t = 0;
+  for (const c of rec.cuts) {
+    const m = Math.floor(t / fps / 60);
+    if (!bins[m]) bins[m] = { n: 0, parts: {} };
+    bins[m].n++; bins[m].parts[c.part] = (bins[m].parts[c.part] || 0) + 1;
+    t += c.b - c.a + 1;
+  }
+  const total = t / fps;
+  for (let i = 0; i < bins.length; i++) if (!bins[i]) bins[i] = { n: 0, parts: {} };
+  return { bins, total, lastSec: total - 60 * (bins.length - 1) };
+}
+function minuteChart(rec) {
+  const { bins, total, lastSec } = minuteCounts(rec);
+  if (!bins.length) return '';
+  const W = 640, H = 220, L = 34, B = 30, T = 14, R2 = 8, n = bins.length, bw = (W - L - R2) / n;
+  const max = Math.max(10, ...bins.map(b => b.n)), top = Math.ceil(max / 5) * 5, y = v => T + (H - T - B) * (1 - v / top);
+  const avg = rec.cuts.length / (total / 60);
+  let g = '';
+  for (let v = 0; v <= top; v += 5) g += `<line x1="${L}" x2="${W - R2}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="${v ? .6 : 1}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  bins.forEach((b, i) => {
+    const main = Object.entries(b.parts).sort((p, q) => q[1] - p[1])[0], col = PART_COLOR[main ? main[0] : ''] || '#9aa0b5';
+    const last = i === n - 1 && lastSec < 59.5, x = L + i * bw + bw * .12, w = bw * .76;
+    g += `<rect x="${x}" y="${y(b.n)}" width="${w}" height="${y(0) - y(b.n)}" rx="2" fill="${col}" opacity="${last ? .4 : .9}"><title>${i}分台：${b.n} カット（平均 ${b.n ? ((last ? lastSec : 60) / b.n).toFixed(1) + '秒' : '–'}）${last ? `／この区間は ${Math.round(lastSec)} 秒だけ` : ''}${Object.keys(b.parts).length > 1 ? '／' + Object.keys(b.parts).join('・') : ''}</title></rect>`;
+    if (b.n >= 1) g += `<text x="${x + w / 2}" y="${y(b.n) - 3}" text-anchor="middle" class="v">${b.n}</text>`;
+    if (i % 5 === 0 || (i === n - 1 && i % 5 > 1)) g += `<text x="${L + i * bw + bw / 2}" y="${H - B + 16}" text-anchor="middle">${i}分</text>`;
+  });
+  g += `<line x1="${L}" x2="${W - R2}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--fg)" stroke-dasharray="4 3" stroke-width="1" opacity=".55"/><text x="${L + 4}" y="${y(avg) - 5}" text-anchor="start" class="v avg">平均 ${avg.toFixed(1)}</text>`;
+  const legend = Object.entries(PART_COLOR).filter(([p]) => rec.cuts.some(c => c.part === p)).map(([p, c]) => `<span><i style="background:${c}"></i>${p}</span>`).join('');
+  return `<section class="mchart"><h3>1分ごとのカット数</h3>
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="本編を1分ごとに区切ったカット数の棒グラフ">${g}</svg>
+  <p class="lg">${legend}<span><i class="dash"></i>本編全体の1分あたり</span></p>
+  <p class="note">本編（OP・アイキャッチ・ED を除く）をつなげた時間で1分ずつ区切り、その1分の間に始まるカットを数えています。20カットなら平均3秒、10カットなら平均6秒。${lastSec < 59.5 ? `最後の${n - 1}分台は ${Math.round(lastSec)} 秒しかないので薄く表示しています。` : ''}棒に指を置くと平均秒数が出ます。</p></section>`;
+}
 function statsHtml(st, title) {
   const sz = SIZES.filter(x => x[0] !== 'CH').reduce((a, [v]) => a + st.size[v], 0);
   const row = (L, obj, base) => L.map(([v, t]) => `<td>${t}<br><b>${obj[v]}</b> <span>${pct(obj[v], base)}</span></td>`).join('');
@@ -166,7 +202,7 @@ function changed(c) {
 function renderStats() {
   const list = R.cuts.filter(match), all = stats(R);
   const open = $('stats').querySelector('details') ? $('stats').querySelector('details').open : true;
-  $('stats').innerHTML = `<details${open ? ' open' : ''}><summary>集計（押すと開け閉め）</summary>` + statsHtml(all, '本編の集計') + (list.length !== R.cuts.length ? statsHtml(stats(R, list), `絞り込んだ ${list.length} カットの集計`) : '') + '</details>';
+  $('stats').innerHTML = minuteChart(R) + `<details${open ? ' open' : ''}><summary>集計（押すと開け閉め）</summary>` + statsHtml(all, '本編の集計') + (list.length !== R.cuts.length ? statsHtml(stats(R, list), `絞り込んだ ${list.length} カットの集計`) : '') + '</details>';
   $('nShown').textContent = `${list.length} / ${R.cuts.length} カットを表示`;
 }
 function render() {
